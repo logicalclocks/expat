@@ -1,6 +1,0 @@
-#!/bin/bash
-
-dirname=$(dirname "$0")
-export CLASSPATH=$dirname/etc/:$dirname/lib/*
-
-java -cp $CLASSPATH io.hops.hopsworks.expat.Expat $@

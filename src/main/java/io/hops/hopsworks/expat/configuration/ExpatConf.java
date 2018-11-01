@@ -41,6 +41,9 @@ public class ExpatConf {
   public static final String KUBE_KEYFILE_KEY = KUBE_PREFIX + "keyFile";
   public static final String KUBE_KEYPWD_KEY = KUBE_PREFIX + "keyPwd";
 
-  // ------- Other configuration -------- //
-  public static final String MASTER_PWD_FILE_KEY = "masterPwdFile";
+  // ------- X.509 configuration -------- //
+  private static final String CERTS_PREFIX = "x509.";
+  public static final String MASTER_PWD_FILE_KEY = CERTS_PREFIX + "masterPwdFile";
+  public static final String INTERMEDIATE_CA_PATH = CERTS_PREFIX + "intermediateCA";
+  public static final String CREATE_USER_CERT_SCRIPT = CERTS_PREFIX + "userCertsScript";
 }

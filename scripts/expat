@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+HADOOP_HOME="${HADOOP_HOME:?You should set HADOOP_HOME}"
+EXPAT_HADOOP_SHARE=${HADOOP_HOME}/share/hadoop
+
+HOPSWORKS_EAR_HOME="${HOPSWORKS_EAR_HOME:?You should set HOPSWORKS_EAR_HOME}"
+
+dirname=$(dirname "$0")
+export CLASSPATH=$dirname/../etc/:$dirname/../lib/*:$EXPAT_HADOOP_SHARE/hdfs/*:$EXPAT_HADOOP_SHARE/common/*:$HOPSWORKS_EAR_HOME/lib/*
+
+java -cp $CLASSPATH io.hops.hopsworks.expat.Expat $@
