@@ -48,6 +48,7 @@
         io.hops.hopsworks.expat.migrations.kubernetes.CreateCertSecrets
         io.hops.hopsworks.expat.migrations.x509.GenerateUserCertificates
         io.hops.hopsworks.expat.migrations.x509.GenerateProjectCertificates
+        io.hops.hopsworks.expat.migrations.jobs.JobsGpuMigration
     </version-060>
 </expat>
 
