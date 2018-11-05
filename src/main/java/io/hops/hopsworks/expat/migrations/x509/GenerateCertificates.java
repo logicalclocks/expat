@@ -26,6 +26,8 @@ import io.hops.hopsworks.expat.migrations.Utils;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.io.FileUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -42,11 +44,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public abstract class GenerateCertificates {
-  private final static Logger LOGGER = Logger.getLogger(GenerateCertificates.class.getName());
+  private static final Logger LOGGER = LogManager.getLogger(GenerateCertificates.class);
+  
   private final static String GET_USER_BY_USERNAME = "SELECT * FROM users WHERE username = ?";
   private final static String GET_USER_BY_EMAIL = "SELECT * FROM users WHERE email = ?";
   private final static String GET_ADDRESS_BY_UID = "SELECT * FROM address WHERE uid = ?";
@@ -86,21 +87,21 @@ public abstract class GenerateCertificates {
   protected void generateNewCertsAndUpdateDb(Map<ExpatCertificate, ExpatUser> certificates, String print)
       throws SQLException, IOException {
     int total = certificates.size();
-    LOGGER.log(Level.INFO, "Going to regenerate " + total + " certificates");
-    LOGGER.log(Level.INFO, "Start generating new " + print + " Certificates");
+    LOGGER.info("Going to regenerate " + total + " certificates");
+    LOGGER.info("Start generating new " + print + " Certificates");
     int idx = 1;
     for (Map.Entry<ExpatCertificate, ExpatUser> entry : certificates.entrySet()) {
       generateCertificate(entry.getKey(), entry.getValue(), idx, total);
       idx++;
     }
-    LOGGER.log(Level.INFO,"Start updating certificates");
+    LOGGER.info("Start updating certificates");
     updateCertificatesInDB(certificates.keySet(), connection);
   }
   
   private void generateCertificate(ExpatCertificate userCert, ExpatUser user, int idx, int total) throws IOException {
     // Move previous certificates for backup
     String id = userCert.getProjectName() + "__" + userCert.getUsername();
-    LOGGER.log(Level.INFO, "Generating new certificate for " + userCert);
+    LOGGER.info("Generating new certificate for " + userCert);
     
     String certId = id + ".cert.pem";
     File oldCert = Paths.get(intermediateCA, "certs", certId).toFile();
@@ -140,7 +141,7 @@ public abstract class GenerateCertificates {
     }
     userCert.setKeyStore(keyStore);
     userCert.setTrustStore(trustStore);
-    LOGGER.log(Level.INFO, "Finished generating new certificate for " + userCert + " - " + idx + "/" + total);
+    LOGGER.info("Finished generating new certificate for " + userCert + " - " + idx + "/" + total);
   }
   
   protected ExpatUser getExpatUserByUsername(String username) throws SQLException {

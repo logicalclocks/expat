@@ -17,15 +17,14 @@
 package io.hops.hopsworks.expat.migrations;
 
 import io.hops.hopsworks.common.util.SystemCommandExecutor;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class Utils {
-  private final static Logger LOGGER = Logger.getLogger(Utils.class.getName());
-  
+  private static final Logger LOGGER = LogManager.getLogger(Utils.class);
   public static String executeCommand(List<String> commands, boolean redirectErrorStream) throws IOException {
     SystemCommandExecutor commandExecutor = new SystemCommandExecutor(commands, redirectErrorStream);
     try {
@@ -37,7 +36,7 @@ public class Utils {
       }
       return stdout;
     } catch (InterruptedException ex) {
-      LOGGER.log(Level.SEVERE, "Error while waiting for OpenSSL command to execute");
+      LOGGER.error("Error while waiting for OpenSSL command to execute", ex);
       throw new IOException(ex);
     }
   }

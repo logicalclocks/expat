@@ -27,17 +27,17 @@ import io.hops.hopsworks.expat.migrations.MigrateStep;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
 import org.apache.commons.configuration2.ex.ConfigurationException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class CreateNS implements MigrateStep {
-
-  private static Logger LOGGER = Logger.getLogger(CreateNS.class.getName());
+  
+  private static final Logger LOGGER = LogManager.getLogger(CreateNS.class);
 
   @Override
   public void migrate() throws MigrationException {
@@ -65,9 +65,9 @@ public class CreateNS implements MigrateStep {
               .withName(nsName)
               .endMetadata()
               .done();
-          LOGGER.log(Level.INFO, "Namespace " + nsName + " created for project: " + projectName);
+          LOGGER.info("Namespace " + nsName + " created for project: " + projectName);
         } catch (KubernetesClientException e) {
-          LOGGER.log(Level.SEVERE, "Could not create Namespace " + nsName + " for project: " + projectName, e);
+          LOGGER.error("Could not create Namespace " + nsName + " for project: " + projectName, e);
         }
 
       }
@@ -120,9 +120,9 @@ public class CreateNS implements MigrateStep {
               .build();
 
           client.namespaces().delete(ns);
-          LOGGER.log(Level.INFO, "Namespace " + nsName + " deleted for project: " + projectName);
+          LOGGER.info("Namespace " + nsName + " deleted for project: " + projectName);
         } catch (KubernetesClientException e) {
-          LOGGER.log(Level.SEVERE, "Could not delete Namespace " + nsName + " for project: " + projectName, e);
+          LOGGER.error("Could not delete Namespace " + nsName + " for project: " + projectName, e);
         }
 
       }

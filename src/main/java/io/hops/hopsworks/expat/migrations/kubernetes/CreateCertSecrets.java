@@ -33,6 +33,8 @@ import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -45,8 +47,6 @@ import java.sql.Statement;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import static io.hops.hopsworks.common.util.Settings.CERT_PASS_SUFFIX;
 import static io.hops.hopsworks.common.util.Settings.KEYSTORE_SUFFIX;
@@ -54,7 +54,7 @@ import static io.hops.hopsworks.common.util.Settings.TRUSTSTORE_SUFFIX;
 
 public class CreateCertSecrets implements MigrateStep {
 
-  private static Logger LOGGER = Logger.getLogger(CreateCertSecrets.class.getName());
+  private static final Logger LOGGER = LogManager.getLogger(CreateCertSecrets.class);
 
   @Override
   public void migrate() throws MigrationException {
@@ -112,9 +112,9 @@ public class CreateCertSecrets implements MigrateStep {
           // Send request
           client.secrets().inNamespace(nsName).createOrReplace(secret);
 
-          LOGGER.log(Level.INFO, "Secret " + kubeUsername + " created for project user: " + projectName);
+          LOGGER.info("Secret " + kubeUsername + " created for project user: " + projectName);
         } catch (Exception e) {
-          LOGGER.log(Level.SEVERE, "Could not create secret " + kubeUsername + " for project user: "
+          LOGGER.error("Could not create secret " + kubeUsername + " for project user: "
               + projectName, e);
         }
 
@@ -173,9 +173,9 @@ public class CreateCertSecrets implements MigrateStep {
               .build();
 
           client.secrets().inNamespace(nsName).delete(secret);
-          LOGGER.log(Level.INFO, "Secret " + kubeUsername + " deleted for project user: " + hopsUsername);
+          LOGGER.info("Secret " + kubeUsername + " deleted for project user: " + hopsUsername);
         } catch (KubernetesClientException e) {
-          LOGGER.log(Level.SEVERE, "Could not delete secret" + kubeUsername + " for project user: " +
+          LOGGER.error("Could not delete secret" + kubeUsername + " for project user: " +
               hopsUsername, e);
         }
 

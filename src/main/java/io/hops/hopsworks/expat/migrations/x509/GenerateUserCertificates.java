@@ -21,6 +21,8 @@ import io.hops.hopsworks.expat.migrations.MigrateStep;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
 import org.apache.commons.configuration2.ex.ConfigurationException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -31,15 +33,13 @@ import java.sql.Statement;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 
 public class GenerateUserCertificates extends GenerateCertificates implements MigrateStep {
-  private final static Logger LOGGER = Logger.getLogger(GenerateUserCertificates.class.getName());
+  private static final Logger LOGGER = LogManager.getLogger(GenerateProjectCertificates.class);
   private final static String SELECT_USER_CERTS = "SELECT * FROM user_certs";
-  private final static String UPDATE_USER_CERTS = "UPDATE user_certs SET user_key = ?, user_cert = ? WHERE " +
-      "projectname = ? && username = ?";
+  private final static String UPDATE_USER_CERTS = "UPDATE user_certs SET user_key = ?, user_cert = ?, user_key_pwd = ?" +
+      " WHERE projectname = ? && username = ?";
   
   @Override
   public void migrate() throws MigrationException {
@@ -47,25 +47,25 @@ public class GenerateUserCertificates extends GenerateCertificates implements Mi
       // Important!
       setup("UserCertificates");
       
-      LOGGER.log(Level.INFO, "Getting all User Certificates");
+      LOGGER.info("Getting all User Certificates");
       Map<ExpatCertificate, ExpatUser> userCerts = getUserCerts();
       
       generateNewCertsAndUpdateDb(userCerts, "User");
       
-      LOGGER.log(Level.INFO, "Finished migration of User Certificates.");
-      LOGGER.log(Level.INFO, ">>> You should revoke certificates and clean manually backup dir with previous certs: " +
+      LOGGER.info("Finished migration of User Certificates.");
+      LOGGER.info(">>> You should revoke certificates and clean manually backup dir with previous certs: " +
           certsBackupDir.toString());
     } catch (ConfigurationException | SQLException ex) {
       String errorMsg = "Could not initialize database connection";
-      LOGGER.log(Level.SEVERE, errorMsg);
+      LOGGER.error(errorMsg, ex);
       throw new MigrationException(errorMsg, ex);
     } catch (IOException ex) {
       String errorMsg = "Could not read master password";
-      LOGGER.log(Level.SEVERE, errorMsg);
+      LOGGER.error(errorMsg, ex);
       throw new MigrationException(errorMsg, ex);
     } catch (Exception ex) {
       String errorMsg = "Could not decrypt user password";
-      LOGGER.log(Level.SEVERE, errorMsg);
+      LOGGER.error(errorMsg, ex);
       throw new MigrationException(errorMsg, ex);
     }
   }
@@ -91,12 +91,12 @@ public class GenerateUserCertificates extends GenerateCertificates implements Mi
       while (certsRS.next()) {
         String projectName = certsRS.getString("projectname");
         String username = certsRS.getString("username");
-        String password = certsRS.getString("user_key_pwd");
     
         ExpatCertificate cert = new ExpatCertificate(projectName, username);
-        cert.setCipherPassword(password);
         ExpatUser user = getExpatUserByUsername(username);
-        cert.setPlainPassword(HopsUtils.decrypt(user.getPassword(), password, masterPassword));
+        cert.setPlainPassword(HopsUtils.randomString(64));
+        String cipherPassword = HopsUtils.encrypt(user.getPassword(), cert.getPlainPassword(), masterPassword);
+        cert.setCipherPassword(cipherPassword);
         userCerts.put(cert, user);
       }
       return userCerts;
@@ -119,14 +119,15 @@ public class GenerateUserCertificates extends GenerateCertificates implements Mi
       for (ExpatCertificate uc : userCerts) {
         updateStmt.setBytes(1, uc.getKeyStore());
         updateStmt.setBytes(2, uc.getTrustStore());
-        updateStmt.setString(3, uc.getProjectName());
-        updateStmt.setString(4, uc.getUsername());
+        updateStmt.setString(3, uc.getCipherPassword());
+        updateStmt.setString(4, uc.getProjectName());
+        updateStmt.setString(5, uc.getUsername());
         updateStmt.addBatch();
-        LOGGER.log(Level.INFO, "Added " + uc + " to Tx batch");
+        LOGGER.debug("Added " + uc + " to Tx batch");
       }
       updateStmt.executeBatch();
       conn.commit();
-      LOGGER.log(Level.INFO, "Finished updating database");
+      LOGGER.info("Finished updating database");
     } finally {
       if (updateStmt != null) {
         updateStmt.close();

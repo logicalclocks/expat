@@ -21,6 +21,8 @@ import io.hops.hopsworks.expat.migrations.MigrateStep;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
 import org.apache.commons.configuration2.ex.ConfigurationException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -31,15 +33,13 @@ import java.sql.Statement;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class GenerateProjectCertificates extends GenerateCertificates implements MigrateStep {
-  private final static Logger LOGGER = Logger.getLogger(GenerateUserCertificates.class.getName());
+  private static final Logger LOGGER = LogManager.getLogger(GenerateProjectCertificates.class);
   private static final String SELECT_PROJECT_CERTS = "SELECT * FROM projectgenericuser_certs";
   private static final String SELECT_PROJECT_BY_NAME = "SELECT * FROM project WHERE projectname = ?";
   private final static String UPDATE_PROJECT_CERTS = "UPDATE projectgenericuser_certs SET pgu_key = ?, " +
-      "pgu_cert = ? WHERE project_generic_username = ?";
+      "pgu_cert = ?, cert_password = ? WHERE project_generic_username = ?";
   
   
   @Override
@@ -48,25 +48,25 @@ public class GenerateProjectCertificates extends GenerateCertificates implements
       // Important!
       setup("ProjectCertificates");
       
-      LOGGER.log(Level.INFO, "Getting all Project Certificates");
+      LOGGER.info("Getting all Project Certificates");
       Map<ExpatCertificate, ExpatUser> projectCerts = getProjectCerts();
       
       generateNewCertsAndUpdateDb(projectCerts, "Project Generic");
   
-      LOGGER.log(Level.INFO, "Finished migration of User Certificates.");
-      LOGGER.log(Level.INFO, ">>> You should revoke certificates and clean manually backup dir with previous certs: " +
+      LOGGER.info("Finished migration of User Certificates.");
+      LOGGER.info(">>> You should revoke certificates and clean manually backup dir with previous certs: " +
           certsBackupDir.toString());
     } catch (ConfigurationException | SQLException ex) {
       String errorMsg = "Could not initialize database connection";
-      LOGGER.log(Level.SEVERE, errorMsg);
+      LOGGER.error(errorMsg, ex);
       throw new MigrationException(errorMsg, ex);
     } catch (IOException ex) {
       String errorMsg = "Could not read master password";
-      LOGGER.log(Level.SEVERE, errorMsg);
+      LOGGER.error(errorMsg, ex);
       throw new MigrationException(errorMsg, ex);
     } catch (Exception ex) {
       String errorMsg = "Could not decrypt user password";
-      LOGGER.log(Level.SEVERE, errorMsg);
+      LOGGER.error(errorMsg, ex);
       throw new MigrationException(errorMsg, ex);
     }
   }
@@ -80,24 +80,28 @@ public class GenerateProjectCertificates extends GenerateCertificates implements
       certsRS = certsStmt.executeQuery(SELECT_PROJECT_CERTS);
       while (certsRS.next()) {
         String projectGenericUN = certsRS.getString("project_generic_username");
-        String password = certsRS.getString("cert_password");
         String[] tokens = projectGenericUN.split("__");
         if (tokens.length != 2) {
           throw new MigrationException("Could not parse Project Generic Username: " + projectGenericUN);
         }
         String projectName = tokens[0];
         ExpatCertificate cert = new ExpatCertificate(projectName, "PROJECTGENERICUSER");
-        cert.setCipherPassword(password);
-        
+  
+        LOGGER.info("Processing: " + projectGenericUN + " <" + tokens[0] + ", " + tokens[1] + ">");
         // Get owner of the project
         try {
           projectStmt = connection.prepareStatement(SELECT_PROJECT_BY_NAME);
           projectStmt.setString(1, projectName);
           projectRS = projectStmt.executeQuery();
-          projectRS.next();
+          if (!projectRS.next()) {
+            LOGGER.warn("Could not find project " + projectName);
+            continue;
+          }
           String ownerEmail = projectRS.getString("username");
           ExpatUser user = getExpatUserByEmail(ownerEmail);
-          cert.setPlainPassword(HopsUtils.decrypt(user.getPassword(), password, masterPassword));
+          cert.setPlainPassword(HopsUtils.randomString(64));
+          String cipherPassword = HopsUtils.encrypt(user.getPassword(), cert.getPlainPassword(), masterPassword);
+          cert.setCipherPassword(cipherPassword);
           
           projectCerts.put(cert, user);
         } finally {
@@ -138,14 +142,15 @@ public class GenerateProjectCertificates extends GenerateCertificates implements
       for (ExpatCertificate c : certificates) {
         updateStmt.setBytes(1, c.getKeyStore());
         updateStmt.setBytes(2, c.getTrustStore());
+        updateStmt.setString(3, c.getCipherPassword());
         String pgu = c.getProjectName() + "__" + c.getUsername();
-        updateStmt.setString(3, pgu);
+        updateStmt.setString(4, pgu);
         updateStmt.addBatch();
-        LOGGER.log(Level.INFO, "Added " + c + " to Tx batch");
+        LOGGER.debug("Added " + c + " to Tx batch");
       }
       updateStmt.executeBatch();
       connection.commit();
-      LOGGER.log(Level.INFO, "Finished updating database");
+      LOGGER.info("Finished updating database");
     } finally {
       if (updateStmt != null) {
         updateStmt.close();

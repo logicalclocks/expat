@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+  <Appenders>
+    <Console name="ConsoleAppender" target="SYSTEM_OUT">
+      <PatternLayout
+          pattern="%d [%t] %-5level %logger{36} - %msg%n%throwable"/>
+    </Console>
+
+    <RollingFile name="RFA"
+                 fileName="logs/expat.log"
+                 filePattern="logs/expat.%d{MM-dd-yyyy-HH-mm}.%i.log.gz"
+                 ignoreExceptions="false">
+      <PatternLayout>
+        <Pattern>%d [%t] %-5level %logger{36} - %msg%n%throwable</Pattern>
+      </PatternLayout>
+      <Policies>
+        <SizeBasedTriggeringPolicy size="5 MB" />
+      </Policies>
+    </RollingFile>
+  </Appenders>
+  <Loggers>
+    <Root level="INFO">
+      <AppenderRef ref="RFA"/>
+      <AppenderRef ref="ConsoleAppender"/>
+    </Root>
+  </Loggers>
+</Configuration>
