@@ -18,11 +18,12 @@ package io.hops.hopsworks.expat.migrations.x509;
 
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Files;
+import io.hops.hopsworks.common.util.ProcessDescriptor;
 import io.hops.hopsworks.expat.configuration.ConfigurationBuilder;
 import io.hops.hopsworks.expat.configuration.ExpatConf;
 import io.hops.hopsworks.expat.db.DbConnectionFactory;
+import io.hops.hopsworks.expat.executor.ProcessExecutor;
 import io.hops.hopsworks.expat.migrations.MigrationException;
-import io.hops.hopsworks.expat.migrations.Utils;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.io.FileUtils;
@@ -118,17 +119,20 @@ public abstract class GenerateCertificates {
     }
     
     // Generate certificate
-    List<String> commands = new ArrayList<>(9);
-    commands.add("/usr/bin/sudo");
-    commands.add(Paths.get(intermediateCA, userCertsScript).toString());
-    commands.add(id);
-    commands.add(user.getCountry());
-    commands.add(user.getCity());
-    commands.add(user.getOrganization());
-    commands.add(user.getEmail());
-    commands.add(user.getOrcid());
-    commands.add(userCert.getPlainPassword());
-    Utils.executeCommand(commands, false);
+    ProcessDescriptor processDescriptor = new ProcessDescriptor.Builder()
+        .addCommand("/usr/bin/sudo")
+        .addCommand(Paths.get(intermediateCA, userCertsScript).toString())
+        .addCommand(id)
+        .addCommand(user.getCountry())
+        .addCommand(user.getCity())
+        .addCommand(user.getOrganization())
+        .addCommand(user.getEmail())
+        .addCommand(user.getOrcid())
+        .addCommand(userCert.getPlainPassword())
+        .ignoreOutErrStreams(true)
+        .build();
+    
+    ProcessExecutor.getExecutor().execute(processDescriptor);
     
     File keyStoreFile = Paths.get("/tmp", id + "__kstore.jks").toFile();
     File trustStoreFile = Paths.get("/tmp", id + "__tstore.jks").toFile();

@@ -18,6 +18,8 @@
 package io.hops.hopsworks.expat;
 
 import io.hops.hopsworks.expat.configuration.ConfigurationBuilder;
+import io.hops.hopsworks.expat.executor.ProcessExecutor;
+import io.hops.hopsworks.expat.executor.ShutdownManager;
 import io.hops.hopsworks.expat.migrations.MigrateStep;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
@@ -89,6 +91,9 @@ public class Expat {
 
   public static void main(String[] args) throws Exception {
     Expat e = new Expat(args);
+  
+    ShutdownManager.getManager().addShutdownHook(new ProcessExecutor.ShutdownHook(), 100);
+    
     e.run();
   }
 }
