@@ -18,6 +18,9 @@
 package io.hops.hopsworks.expat.configuration;
 
 public class ExpatConf {
+  private static final String EXPAT_PREFIX = "expat.";
+  public static final String EXPAT_PATH = EXPAT_PREFIX + "dir";
+
   // ------ Database Configuration ------ //
   private static final String DATABASE_PREFIX = "database.";
   public static final String DATABASE_DBMS_DRIVER_NAME = DATABASE_PREFIX + "driver";
@@ -46,4 +49,9 @@ public class ExpatConf {
   public static final String MASTER_PWD_FILE_KEY = CERTS_PREFIX + "masterPwdFile";
   public static final String INTERMEDIATE_CA_PATH = CERTS_PREFIX + "intermediateCA";
   public static final String CREATE_USER_CERT_SCRIPT = CERTS_PREFIX + "userCertsScript";
+
+  // ------- Conda -------- //
+  private static final String CONDA_PREFIX = "conda.";
+  public static final String CONDA_DIR = CONDA_PREFIX + "dir";
+  public static final String CONDA_USER = CONDA_PREFIX + "user";
 }

@@ -17,6 +17,10 @@
   -->
 
 <expat>
+    <expat>
+        <dir>/</dir>
+    </expat>
+
     <database>
         <url>jdbc:mysql://192.168.100.101:3306/hopsworks</url>
         <driver>com.mysql.jdbc.Driver</driver>
@@ -43,6 +47,11 @@
         <userCertsScript>createusercerts.sh</userCertsScript>
     </x509>
 
+    <conda>
+        <dir>/srv/hops/anaconda</dir>
+        <user>anaconda</user>
+    </conda>
+
     <version-06>
         io.hops.hopsworks.expat.migrations.kubernetes.CreateNS
         io.hops.hopsworks.expat.migrations.kubernetes.CreateCertSecrets
@@ -53,6 +62,7 @@
 
     <version-07>
         io.hops.hopsworks.expat.migrations.jobs.UpdateJobConfiguration
+        io.hops.hopsworks.expat.migrations.conda.JupyterInConda
     </version-07>
 </expat>
 

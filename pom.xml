@@ -173,6 +173,12 @@
                                         <include>revoke_certificates.sh</include>
                                     </includes>
                                 </resource>
+                                <resource>
+                                    <directory>${basedir}/scripts</directory>
+                                    <includes>
+                                        <include>jupyter_migrate.sh</include>
+                                    </includes>
+                                </resource>
                             </resources>
                         </configuration>
                     </execution>
@@ -207,6 +213,7 @@
                         <configuration>
                             <target>
                                 <chmod file="target/dist/bin/expat" perm="755"/>
+                                <chmod file="target/dist/bin/jupyter_migrate.sh" perm="755"/>
                             </target>
                         </configuration>
                         <goals>
