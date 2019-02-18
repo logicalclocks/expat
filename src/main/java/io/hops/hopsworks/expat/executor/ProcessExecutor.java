@@ -19,8 +19,8 @@ package io.hops.hopsworks.expat.executor;
 import io.hops.hopsworks.common.util.ProcessDescriptor;
 import io.hops.hopsworks.common.util.ProcessResult;
 import io.hops.hopsworks.common.util.StreamGobbler;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.async.DaemonThreadFactory;
 
 import java.io.ByteArrayOutputStream;

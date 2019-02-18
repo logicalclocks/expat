@@ -28,6 +28,10 @@
         <password>password</password>
     </database>
 
+    <services>
+        <kibana-url>http://localhost:5601</kibana-url>
+    </services>
+
     <kube>
         <user></user>
         <masterUrl></masterUrl>
@@ -64,5 +68,9 @@
         io.hops.hopsworks.expat.migrations.jobs.UpdateJobConfiguration
         io.hops.hopsworks.expat.migrations.conda.JupyterInConda
     </version-07>
+
+    <version-010>
+        io.hops.hopsworks.expat.migrations.conda.CreateKagentLogsIndeces
+    </version-010>
 </expat>
 

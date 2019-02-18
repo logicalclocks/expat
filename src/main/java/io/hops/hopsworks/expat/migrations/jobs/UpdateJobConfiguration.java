@@ -5,17 +5,17 @@ import io.hops.hopsworks.expat.migrations.MigrateStep;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
 import org.apache.commons.configuration2.ex.ConfigurationException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.sql.*;
 import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class UpdateJobConfiguration implements MigrateStep {
-
-  private final static Logger LOGGER = Logger.getLogger(UpdateJobConfiguration.class.getName());
+  private final static Logger LOGGER = LogManager.getLogger(UpdateJobConfiguration.class);
+  
   private final static String GET_ALL_JOB_CONFIGURATIONS = "SELECT id, json_config FROM jobs";
   private final static String UPDATE_SPECIFIC_JOB_JSON_CONFIG = "UPDATE jobs SET json_config = ? WHERE id = ?";
   protected Connection connection;
@@ -26,12 +26,12 @@ public class UpdateJobConfiguration implements MigrateStep {
 
   @Override
   public void migrate() throws MigrationException {
-    LOGGER.log(Level.INFO, "Starting jobConfig migration");
+    LOGGER.info("Starting jobConfig migration");
     try {
       setup();
     } catch (SQLException | ConfigurationException ex) {
       String errorMsg = "Could not initialize database connection";
-      LOGGER.log(Level.SEVERE, errorMsg);
+      LOGGER.error(errorMsg);
       throw new MigrationException(errorMsg, ex);
     }
 
@@ -47,9 +47,9 @@ public class UpdateJobConfiguration implements MigrateStep {
         int id = allJobsResultSet.getInt(1);
         String oldConfig = allJobsResultSet.getString(2);
 
-        LOGGER.log(Level.INFO, "Trying to migrate JobID: " + id);
+        LOGGER.info("Trying to migrate JobID: " + id);
         String newConfig = convertJSON(oldConfig, true);
-        LOGGER.log(Level.INFO, "Successfully migrated JobID: " + id);
+        LOGGER.info("Successfully migrated JobID: " + id);
 
         updateJSONConfigStmt.setString(1, newConfig);
         updateJSONConfigStmt.setInt(2, id);
@@ -60,12 +60,12 @@ public class UpdateJobConfiguration implements MigrateStep {
       connection.setAutoCommit(true);
     } catch(SQLException ex) {
       String errorMsg = "Could not migrate job configurations";
-      LOGGER.log(Level.SEVERE, errorMsg);
+      LOGGER.error(errorMsg);
       throw new MigrationException(errorMsg, ex);
     } finally {
       closeConnections(stmt, updateJSONConfigStmt);
     }
-    LOGGER.log(Level.INFO, "Finished jobConfig migration");
+    LOGGER.info("Finished jobConfig migration");
   }
 
   //This function converts an old jobConfig to the new format
@@ -353,12 +353,12 @@ public class UpdateJobConfiguration implements MigrateStep {
 
   @Override
   public void rollback() throws RollbackException {
-    LOGGER.log(Level.INFO, "Starting jobConfig rollback");
+    LOGGER.info("Starting jobConfig rollback");
       try {
         setup();
       } catch (SQLException | ConfigurationException ex) {
         String errorMsg = "Could not initialize database connection";
-        LOGGER.log(Level.SEVERE, errorMsg);
+        LOGGER.error(errorMsg);
         throw new RollbackException(errorMsg, ex);
       }
 
@@ -375,9 +375,9 @@ public class UpdateJobConfiguration implements MigrateStep {
           int id = allJobsResultSet.getInt(1);
           String oldConfig = allJobsResultSet.getString(2);
 
-          LOGGER.log(Level.INFO, "Trying to rollback JobID: " + id);
+          LOGGER.info("Trying to rollback JobID: " + id);
           String newConfig = convertJSON(oldConfig, false);
-          LOGGER.log(Level.INFO, "Successfully rollbacked JobID: " + id);
+          LOGGER.info("Successfully rollbacked JobID: " + id);
 
           updateJSONConfigStmt.setString(1, newConfig);
           updateJSONConfigStmt.setInt(2, id);
@@ -388,12 +388,12 @@ public class UpdateJobConfiguration implements MigrateStep {
         connection.setAutoCommit(true);
       } catch(SQLException ex) {
         String errorMsg = "Could not migrate job configurations";
-        LOGGER.log(Level.SEVERE, errorMsg);
+        LOGGER.error(errorMsg);
         throw new RollbackException(errorMsg, ex);
       } finally {
         closeConnections(stmt, updateJSONConfigStmt);
       }
-    LOGGER.log(Level.INFO, "Starting jobConfig rollback");
+    LOGGER.info("Starting jobConfig rollback");
   }
 
   private void closeConnections(Statement stmt, PreparedStatement preparedStatement) {

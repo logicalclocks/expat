@@ -23,6 +23,7 @@ import io.hops.hopsworks.expat.executor.ShutdownManager;
 import io.hops.hopsworks.expat.migrations.MigrateStep;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
+import io.hops.hopsworks.expat.migrations.conda.CreateKagentLogsIndeces;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.kohsuke.args4j.CmdLineException;
@@ -93,6 +94,7 @@ public class Expat {
     Expat e = new Expat(args);
   
     ShutdownManager.getManager().addShutdownHook(new ProcessExecutor.ShutdownHook(), 100);
+    ShutdownManager.getManager().addShutdownHook(new CreateKagentLogsIndeces.ShutdownHook(), 150);
     
     e.run();
   }

@@ -54,4 +54,8 @@ public class ExpatConf {
   private static final String CONDA_PREFIX = "conda.";
   public static final String CONDA_DIR = CONDA_PREFIX + "dir";
   public static final String CONDA_USER = CONDA_PREFIX + "user";
+  
+  // ------ Services -------- //
+  private static final String SERVICES_PREFIX = "services.";
+  public static final String KIBANA_URI= SERVICES_PREFIX + "kibana-url";
 }
