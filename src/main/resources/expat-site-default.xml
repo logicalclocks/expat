@@ -71,6 +71,7 @@
 
     <version-010>
         io.hops.hopsworks.expat.migrations.conda.CreateKagentLogsIndeces
+        io.hops.hopsworks.expat.migrations.jobs.RenameResources
     </version-010>
 </expat>
 
