@@ -24,6 +24,7 @@ import io.hops.hopsworks.expat.migrations.MigrateStep;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
 import io.hops.hopsworks.expat.migrations.conda.CreateKagentLogsIndeces;
+import io.hops.hopsworks.expat.migrations.elk.BeamKibana;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.kohsuke.args4j.CmdLineException;
@@ -95,6 +96,7 @@ public class Expat {
   
     ShutdownManager.getManager().addShutdownHook(new ProcessExecutor.ShutdownHook(), 100);
     ShutdownManager.getManager().addShutdownHook(new CreateKagentLogsIndeces.ShutdownHook(), 150);
+    ShutdownManager.getManager().addShutdownHook(new BeamKibana.ShutdownHook(), 200);
     
     e.run();
   }

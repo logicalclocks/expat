@@ -38,8 +38,8 @@ import java.util.Set;
 public class GenerateUserCertificates extends GenerateCertificates implements MigrateStep {
   private static final Logger LOGGER = LogManager.getLogger(GenerateProjectCertificates.class);
   private final static String SELECT_USER_CERTS = "SELECT * FROM user_certs";
-  private final static String UPDATE_USER_CERTS = "UPDATE user_certs SET user_key = ?, user_cert = ?, user_key_pwd = ?" +
-      " WHERE projectname = ? && username = ?";
+  private final static String UPDATE_USER_CERTS =
+    "UPDATE user_certs SET user_key = ?, user_cert = ?, user_key_pwd = ? WHERE projectname = ? && username = ?";
   
   @Override
   public void migrate() throws MigrationException {

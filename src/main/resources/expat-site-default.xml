@@ -73,5 +73,9 @@
         io.hops.hopsworks.expat.migrations.conda.CreateKagentLogsIndeces
         io.hops.hopsworks.expat.migrations.jobs.RenameResources
     </version-010>
+
+    <version-10>
+        io.hops.hopsworks.expat.migrations.elk.BeamKibana
+    </version-10>
 </expat>
 

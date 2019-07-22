@@ -14,7 +14,7 @@
  * this program. If not, see <https://www.gnu.org/licenses/>.
  *
  */
-package io.hops.hopsworks.expat.migrations.conda;
+package io.hops.hopsworks.expat.migrations.elk;
 
 import io.hops.hopsworks.common.util.Settings;
 import io.hops.hopsworks.expat.configuration.ConfigurationBuilder;
@@ -24,6 +24,7 @@ import io.hops.hopsworks.expat.migrations.MigrateStep;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
 import io.hops.hopsworks.expat.migrations.Utils;
+import io.hops.hopsworks.expat.migrations.conda.CreateKagentLogsIndeces;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.http.HttpHost;
@@ -41,9 +42,16 @@ import java.sql.Statement;
 import java.util.HashSet;
 import java.util.Set;
 
-public class CreateKagentLogsIndeces implements MigrateStep {
-  private static final Logger LOGGER = LogManager.getLogger(CreateKagentLogsIndeces.class);
-  private static final String GET_CONDA_ENABLED_PROJECTS = "SELECT * FROM project WHERE conda_env = 1";
+/**
+ * Adds the project specific index-patterns to the .kibana elasticsearch index. Loops through project in alphabetical
+ * order.
+ */
+public class BeamKibana implements MigrateStep {
+  
+  private static final Logger LOGGER = LogManager.getLogger(BeamKibana.class);
+  
+  private static final String GET_PROJECT_NAMES = "SELECT projectname FROM project ORDER BY projectname ASC";
+  
   
   private Connection connection;
   private static PoolingHttpClientConnectionManager httpConnectionManager;
@@ -65,50 +73,47 @@ public class CreateKagentLogsIndeces implements MigrateStep {
   
   @Override
   public void migrate() throws MigrationException {
+    
     try {
       setup();
       // Get all Conda enabled projects
-      Set<String> projects = getProjectsWithConda();
+      Set<String> projects = getProjectNames();
       
       // Create Kibana index template
       for (String projectName : projects) {
         try {
-          Utils.createKibanaIndexPattern(projectName, Settings.ELASTIC_KAGENT_INDEX_PATTERN, httpClient, kibana);
+          Utils.createKibanaIndexPattern(projectName, Settings.ELASTIC_BEAMJOBSERVER_INDEX_PATTERN, httpClient, kibana);
         } catch (IOException ex) {
-          LOGGER.error("Ooops could not create index-pattern for " + projectName + " Moving on...", ex);
+          LOGGER.error("Ooops could not create index-pattern" + Settings.ELASTIC_BEAMJOBSERVER_INDEX_PATTERN + " for " +
+            projectName + " Moving on...", ex);
+        }
+        try {
+          Utils.createKibanaIndexPattern(projectName, Settings.ELASTIC_BEAMSDKWORKER_INDEX_PATTERN, httpClient, kibana);
+        } catch (IOException ex) {
+          LOGGER.error("Ooops could not create index-pattern" + Settings.ELASTIC_BEAMJOBSERVER_INDEX_PATTERN + " for " +
+            projectName + " Moving on...", ex);
         }
       }
     } catch (Exception ex) {
       LOGGER.error(ex.getMessage(), ex);
       throw new MigrationException("Error in migration step " + CreateKagentLogsIndeces.class.getSimpleName(), ex);
     }
+    
   }
   
-  @Override
-  public void rollback() throws RollbackException {
-    try {
-      setup();
-      Set<String> projects = getProjectsWithConda();
-      
-      for (String projectName : projects) {
-        try {
-          Utils.deleteKibanaIndexPattern(projectName, Settings.ELASTIC_KAGENT_INDEX_PATTERN, httpClient, kibana);
-        } catch (IOException ex) {
-          LOGGER.error("Ooops could not delete index-pattern for " + projectName + " Moving on...", ex);
-        }
-      }
-    } catch (Exception ex) {
-      LOGGER.error(ex.getMessage(), ex);
-      throw new RollbackException("Error in rollback step " + CreateKagentLogsIndeces.class.getSimpleName(), ex);
-    }
-  }
-  
-  private Set<String> getProjectsWithConda() throws SQLException {
+  /**
+   * Returns lower case project names order by asc.
+   *
+   * @return Set project names
+   * @throws SQLException
+   *   SQLException
+   */
+  private Set<String> getProjectNames() throws SQLException {
     Set<String> projects = new HashSet<>();
     ResultSet projectsRS = null;
     Statement projectsStmt = connection.createStatement();
     try {
-      projectsRS = projectsStmt.executeQuery(GET_CONDA_ENABLED_PROJECTS);
+      projectsRS = projectsStmt.executeQuery(GET_PROJECT_NAMES);
       
       while (projectsRS.next()) {
         String projectName = projectsRS.getString("projectname");
@@ -128,8 +133,33 @@ public class CreateKagentLogsIndeces implements MigrateStep {
     }
   }
   
-  public static class ShutdownHook implements Runnable {
+  @Override
+  public void rollback() throws RollbackException {
+    try {
+      setup();
+      Set<String> projects = getProjectNames();
+      
+      for (String projectName : projects) {
+        try {
+          Utils.deleteKibanaIndexPattern(projectName, Settings.ELASTIC_BEAMJOBSERVER_INDEX_PATTERN, httpClient, kibana);
+        } catch (IOException ex) {
+          LOGGER.error("Ooops could not delete index-pattern for " + projectName + " Moving on...", ex);
+        }
+        try {
+          Utils.deleteKibanaIndexPattern(projectName, Settings.ELASTIC_BEAMSDKWORKER_INDEX_PATTERN, httpClient, kibana);
+        } catch (IOException ex) {
+          LOGGER.error("Ooops could not delete index-pattern for " + projectName + " Moving on...", ex);
+        }
+      }
+    } catch (Exception ex) {
+      LOGGER.error(ex.getMessage(), ex);
+      throw new RollbackException("Error in rollback step " + CreateKagentLogsIndeces.class.getSimpleName(), ex);
+    }
+    
+  }
   
+  public static class ShutdownHook implements Runnable {
+    
     @Override
     public void run() {
       if (httpConnectionManager != null) {
@@ -137,5 +167,4 @@ public class CreateKagentLogsIndeces implements MigrateStep {
       }
     }
   }
-  
 }

@@ -10,7 +10,11 @@ import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Set;
 
 public class UpdateJobConfiguration implements MigrateStep {
@@ -19,11 +23,11 @@ public class UpdateJobConfiguration implements MigrateStep {
   private final static String GET_ALL_JOB_CONFIGURATIONS = "SELECT id, json_config FROM jobs";
   private final static String UPDATE_SPECIFIC_JOB_JSON_CONFIG = "UPDATE jobs SET json_config = ? WHERE id = ?";
   protected Connection connection;
-
+  
   private void setup() throws SQLException, ConfigurationException {
     connection = DbConnectionFactory.getConnection();
   }
-
+  
   @Override
   public void migrate() throws MigrationException {
     LOGGER.info("Starting jobConfig migration");
@@ -34,23 +38,23 @@ public class UpdateJobConfiguration implements MigrateStep {
       LOGGER.error(errorMsg);
       throw new MigrationException(errorMsg, ex);
     }
-
+    
     Statement stmt = null;
     PreparedStatement updateJSONConfigStmt = null;
     try {
       connection.setAutoCommit(false);
       stmt = connection.createStatement();
       ResultSet allJobsResultSet = stmt.executeQuery(GET_ALL_JOB_CONFIGURATIONS);
-
+      
       updateJSONConfigStmt = connection.prepareStatement(UPDATE_SPECIFIC_JOB_JSON_CONFIG);
       while (allJobsResultSet.next()) {
         int id = allJobsResultSet.getInt(1);
         String oldConfig = allJobsResultSet.getString(2);
-
+        
         LOGGER.info("Trying to migrate JobID: " + id);
         String newConfig = convertJSON(oldConfig, true);
         LOGGER.info("Successfully migrated JobID: " + id);
-
+        
         updateJSONConfigStmt.setString(1, newConfig);
         updateJSONConfigStmt.setInt(2, id);
         updateJSONConfigStmt.addBatch();
@@ -58,7 +62,7 @@ public class UpdateJobConfiguration implements MigrateStep {
       updateJSONConfigStmt.executeBatch();
       connection.commit();
       connection.setAutoCommit(true);
-    } catch(SQLException ex) {
+    } catch (SQLException ex) {
       String errorMsg = "Could not migrate job configurations";
       LOGGER.error(errorMsg);
       throw new MigrationException(errorMsg, ex);
@@ -67,24 +71,24 @@ public class UpdateJobConfiguration implements MigrateStep {
     }
     LOGGER.info("Finished jobConfig migration");
   }
-
+  
   //This function converts an old jobConfig to the new format
   private String convertJSON(String oldConfig, boolean migrate) {
-
-
+    
+    
     JSONObject config = new JSONObject(oldConfig);
-
-    if(migrate) {
-
+    
+    if (migrate) {
+      
       renameIfKeyExists(config, "type", "jobType");
-
+      
       if (config.get("jobType").equals("SPARK") || config.get("jobType").equals("PYSPARK")) {
         addKeyValue(config, "type", "sparkJobConfiguration");
       } else {
         renameIfKeyExists(config, "jobType", "type");
         return oldConfig.toString();
       }
-
+      
       //These do not exist in new Config, drop them
       removeKeyIfExists(config, "HISTORYSERVER");
       removeKeyIfExists(config, "PYSPARK_PYTHON");
@@ -92,7 +96,7 @@ public class UpdateJobConfiguration implements MigrateStep {
       removeKeyIfExists(config, "DYNEXECSMAX");
       removeKeyIfExists(config, "DYNEXECSMIN");
       removeKeyIfExists(config, "IS_TFONSPARK");
-
+      
       //These were renamed
       renameIfKeyExists(config, "JARPATH", "appPath");
       renameIfKeyExists(config, "ARGS", "args");
@@ -100,44 +104,44 @@ public class UpdateJobConfiguration implements MigrateStep {
       renameIfKeyExists(config, "MAINCLASS", "mainClass");
       renameIfKeyExists(config, "PROPERTIES", "properties");
       renameIfKeyExists(config, "QUEUE", "amQueue");
-
+      
       renameIfKeyExists(config, "AMMEM", "amMemory");
       renameIfKeyExists(config, "AMCORS", "amVCores");
-
+      
       renameIfKeyExists(config, "EXECMEM", "spark.executor.memory");
       renameIfKeyExists(config, "EXECCORES", "spark.executor.cores");
       renameIfKeyExists(config, "NUM_GPUS", "spark.executor.gpus");
-
+      
       renameIfKeyExists(config, "NUMEXECS", "spark.executor.instances");
-
+      
       renameIfKeyExists(config, "DYNEXECS", "spark.dynamicAllocation.enabled");
       renameIfKeyExists(config, "DYNEXECSMINSELECTED", "spark.dynamicAllocation.minExecutors");
       renameIfKeyExists(config, "DYNEXECSMAXSELECTED", "spark.dynamicAllocation.maxExecutors");
       renameIfKeyExists(config, "DYNEXECSINIT", "spark.dynamicAllocation.initialExecutors");
-
+      
       //If kafka config exists
       if (config.has("KAFKA")) {
         renameKafka(config, true);
       }
-
+      
       if (config.has("SCHEDULE")) {
         renameSchedule(config, true);
       }
-
-      if(config.has("RESOURCES")) {
+      
+      if (config.has("RESOURCES")) {
         renameResources(config, true);
       }
     } else {
-
+      
       renameIfKeyExists(config, "jobType", "type");
-
+      
       //These do not exist in new Config, drop them
       addKeyValue(config, "HISTORYSERVER", "");
-      addKeyValue(config,"PYSPARK_PYTHON", "");
+      addKeyValue(config, "PYSPARK_PYTHON", "");
       addKeyValue(config, "PYLIB", "");
       addKeyValue(config, "DYNEXECSMAX", 1500);
       addKeyValue(config, "DYNEXECSMIN", 1);
-
+      
       //These were renamed
       renameIfKeyExists(config, "appPath", "JARPATH");
       renameIfKeyExists(config, "args", "ARGS");
@@ -145,65 +149,65 @@ public class UpdateJobConfiguration implements MigrateStep {
       renameIfKeyExists(config, "mainClass", "MAINCLASS");
       renameIfKeyExists(config, "properties", "PROPERTIES");
       renameIfKeyExists(config, "amQueue", "QUEUE");
-
+      
       renameIfKeyExists(config, "amMemory", "AMMEM");
       renameIfKeyExists(config, "amVCores", "AMCORS");
-
+      
       renameIfKeyExists(config, "spark.executor.memory", "EXECMEM");
       renameIfKeyExists(config, "spark.executor.cores", "EXECCORES");
       renameIfKeyExists(config, "spark.executor.gpus", "NUM_GPUS");
-
+      
       renameIfKeyExists(config, "spark.executor.instances", "NUMEXECS");
-
+      
       renameIfKeyExists(config, "spark.dynamicAllocation.enabled", "DYNEXECS");
       renameIfKeyExists(config, "spark.dynamicAllocation.minExecutors", "DYNEXECSMINSELECTED");
       renameIfKeyExists(config, "spark.dynamicAllocation.maxExecutors", "DYNEXECSMAXSELECTED");
       renameIfKeyExists(config, "spark.dynamicAllocation.initialExecutors", "DYNEXECSINIT");
-
+      
       //If kafka config exists
       if (config.has("kafka")) {
         renameKafka(config, false);
       }
-
+      
       if (config.has("schedule")) {
         renameSchedule(config, false);
       }
-
-      if(config.has("localResources")) {
+      
+      if (config.has("localResources")) {
         renameResources(config, false);
       }
-
+      
     }
-
+    
     return config.toString();
   }
-
+  
   private void renameIfKeyExists(JSONObject config, String oldKey, String newKey) {
-    if(config.has(oldKey)) {
+    if (config.has(oldKey)) {
       Object oldKeyValue = config.get(oldKey);
       config.remove(oldKey);
       config.put(newKey, oldKeyValue);
     }
   }
-
+  
   private void removeKeyIfExists(JSONObject config, String key) {
-    if(config.has(key)) {
+    if (config.has(key)) {
       config.remove(key);
     }
   }
-
+  
   private void addKeyValue(JSONObject config, String key, Object value) {
     config.put(key, value);
   }
-
+  
   private void renameKafka(JSONObject config, boolean migrate) {
-
-    if(migrate) {
-
+    
+    if (migrate) {
+      
       renameIfKeyExists(config, "KAFKA", "kafka");
-
+      
       JSONObject kafkaObj = (JSONObject) config.get("kafka");
-
+      
       if (kafkaObj.has("TOPICS")) {
         JSONArray topicArr = new JSONArray();
         renameIfKeyExists(kafkaObj, "TOPICS", "topics");
@@ -217,8 +221,8 @@ public class UpdateJobConfiguration implements MigrateStep {
         }
         kafkaObj.put("topics", topicArr);
       }
-
-
+      
+      
       if (kafkaObj.has("CONSUMER_GROUPS")) {
         JSONArray topicArr = new JSONArray();
         renameIfKeyExists(kafkaObj, "CONSUMER_GROUPS", "consumerGroups");
@@ -232,24 +236,24 @@ public class UpdateJobConfiguration implements MigrateStep {
         }
         kafkaObj.put("consumerGroups", topicArr);
       }
-
+      
       if (kafkaObj.has("ADVANCED")) {
         renameIfKeyExists(kafkaObj, "ADVANCED", "advanced");
       }
     } else {
-
+      
       renameIfKeyExists(config, "kafka", "KAFKA");
-
+      
       JSONObject kafkaObj = (JSONObject) config.get("KAFKA");
-
+      
       if (kafkaObj.has("topics")) {
         renameIfKeyExists(kafkaObj, "topics", "TOPICS");
         if (kafkaObj.get("TOPICS") instanceof JSONObject) {
           JSONObject topicObj = (JSONObject) kafkaObj.get("TOPICS");
           Set<String> keys = topicObj.keySet();
-          for(String key: keys) {
-            renameIfKeyExists((JSONObject)topicObj.get(key), "ticked", "TICKED");
-            renameIfKeyExists((JSONObject)topicObj.get(key), "name", "NAME");
+          for (String key : keys) {
+            renameIfKeyExists((JSONObject) topicObj.get(key), "ticked", "TICKED");
+            renameIfKeyExists((JSONObject) topicObj.get(key), "name", "NAME");
           }
         } else {
           JSONArray topicsArr = (JSONArray) kafkaObj.get("TOPICS");
@@ -260,7 +264,7 @@ public class UpdateJobConfiguration implements MigrateStep {
           }
         }
       }
-
+      
       if (kafkaObj.has("consumerGroups")) {
         renameIfKeyExists(kafkaObj, "consumerGroups", "CONSUMER_GROUPS");
         if (kafkaObj.get("CONSUMER_GROUPS") instanceof JSONObject) {
@@ -276,52 +280,52 @@ public class UpdateJobConfiguration implements MigrateStep {
           }
         }
       }
-
+      
       if (kafkaObj.has("advanced")) {
         renameIfKeyExists(kafkaObj, "advanced", "ADVANCED");
       }
-
+      
     }
   }
-
+  
   private void renameSchedule(JSONObject config, boolean migrate) {
-    if(migrate) {
+    if (migrate) {
       renameIfKeyExists(config, "SCHEDULE", "schedule");
-
+      
       JSONObject scheduleObj = (JSONObject) config.get("schedule");
-
+      
       if (scheduleObj.has("NUMBER")) {
         renameIfKeyExists(scheduleObj, "NUMBER", "number");
       }
-
+      
       if (scheduleObj.has("UNIT")) {
         renameIfKeyExists(scheduleObj, "UNIT", "unit");
       }
-
+      
       if (scheduleObj.has("START")) {
         renameIfKeyExists(scheduleObj, "START", "start");
       }
     } else {
       renameIfKeyExists(config, "schedule", "SCHEDULE");
-
+      
       JSONObject scheduleObj = (JSONObject) config.get("SCHEDULE");
-
+      
       if (scheduleObj.has("number")) {
         renameIfKeyExists(scheduleObj, "number", "NUMBER");
       }
-
+      
       if (scheduleObj.has("unit")) {
         renameIfKeyExists(scheduleObj, "unit", "UNIT");
       }
-
+      
       if (scheduleObj.has("start")) {
         renameIfKeyExists(scheduleObj, "start", "START");
       }
     }
   }
-
+  
   private void renameResources(JSONObject config, boolean migrate) {
-    if(migrate) {
+    if (migrate) {
       if (config.has("RESOURCES")) {
         JSONArray resourcesArr = new JSONArray();
         renameIfKeyExists(config, "RESOURCES", "localResources");
@@ -329,10 +333,10 @@ public class UpdateJobConfiguration implements MigrateStep {
         Set<String> keys = resourcesObj.keySet();
         for (String key : keys) {
           JSONObject obj = new JSONObject();
-          obj.put("name", ((JSONObject)resourcesObj.get(key)).get("NAME"));
-          obj.put("path", ((JSONObject)resourcesObj.get(key)).get("PATH"));
-          obj.put("visibility", ((JSONObject)resourcesObj.get(key)).get("VISIBILITY"));
-          obj.put("type", ((JSONObject)resourcesObj.get(key)).get("TYPE"));
+          obj.put("name", ((JSONObject) resourcesObj.get(key)).get("NAME"));
+          obj.put("path", ((JSONObject) resourcesObj.get(key)).get("PATH"));
+          obj.put("visibility", ((JSONObject) resourcesObj.get(key)).get("VISIBILITY"));
+          obj.put("type", ((JSONObject) resourcesObj.get(key)).get("TYPE"));
           resourcesArr.put(resourcesArr.length(), obj);
         }
         config.put("localResources", resourcesArr);
@@ -341,70 +345,70 @@ public class UpdateJobConfiguration implements MigrateStep {
       renameIfKeyExists(config, "localResources", "RESOURCES");
       JSONObject resourcesObj = config.getJSONObject("RESOURCES");
       Set<String> keys = resourcesObj.keySet();
-      for(String key: keys) {
-        renameIfKeyExists((JSONObject)resourcesObj.get(key), "name", "NAME");
-        renameIfKeyExists((JSONObject)resourcesObj.get(key), "path", "PATH");
-        renameIfKeyExists((JSONObject)resourcesObj.get(key), "visibility", "VISIBILITY");
-        renameIfKeyExists((JSONObject)resourcesObj.get(key), "type", "TYPE");
-        renameIfKeyExists((JSONObject)resourcesObj.get(key), "pattern", "PATTERN");
+      for (String key : keys) {
+        renameIfKeyExists((JSONObject) resourcesObj.get(key), "name", "NAME");
+        renameIfKeyExists((JSONObject) resourcesObj.get(key), "path", "PATH");
+        renameIfKeyExists((JSONObject) resourcesObj.get(key), "visibility", "VISIBILITY");
+        renameIfKeyExists((JSONObject) resourcesObj.get(key), "type", "TYPE");
+        renameIfKeyExists((JSONObject) resourcesObj.get(key), "pattern", "PATTERN");
       }
     }
   }
-
+  
   @Override
   public void rollback() throws RollbackException {
     LOGGER.info("Starting jobConfig rollback");
-      try {
-        setup();
-      } catch (SQLException | ConfigurationException ex) {
-        String errorMsg = "Could not initialize database connection";
-        LOGGER.error(errorMsg);
-        throw new RollbackException(errorMsg, ex);
+    try {
+      setup();
+    } catch (SQLException | ConfigurationException ex) {
+      String errorMsg = "Could not initialize database connection";
+      LOGGER.error(errorMsg);
+      throw new RollbackException(errorMsg, ex);
+    }
+    
+    Statement stmt = null;
+    PreparedStatement updateJSONConfigStmt = null;
+    
+    try {
+      connection.setAutoCommit(false);
+      stmt = connection.createStatement();
+      ResultSet allJobsResultSet = stmt.executeQuery(GET_ALL_JOB_CONFIGURATIONS);
+      
+      updateJSONConfigStmt = connection.prepareStatement(UPDATE_SPECIFIC_JOB_JSON_CONFIG);
+      while (allJobsResultSet.next()) {
+        int id = allJobsResultSet.getInt(1);
+        String oldConfig = allJobsResultSet.getString(2);
+        
+        LOGGER.info("Trying to rollback JobID: " + id);
+        String newConfig = convertJSON(oldConfig, false);
+        LOGGER.info("Successfully rollbacked JobID: " + id);
+        
+        updateJSONConfigStmt.setString(1, newConfig);
+        updateJSONConfigStmt.setInt(2, id);
+        updateJSONConfigStmt.addBatch();
       }
-
-      Statement stmt = null;
-      PreparedStatement updateJSONConfigStmt = null;
-
-      try {
-        connection.setAutoCommit(false);
-        stmt = connection.createStatement();
-        ResultSet allJobsResultSet = stmt.executeQuery(GET_ALL_JOB_CONFIGURATIONS);
-
-        updateJSONConfigStmt = connection.prepareStatement(UPDATE_SPECIFIC_JOB_JSON_CONFIG);
-        while (allJobsResultSet.next()) {
-          int id = allJobsResultSet.getInt(1);
-          String oldConfig = allJobsResultSet.getString(2);
-
-          LOGGER.info("Trying to rollback JobID: " + id);
-          String newConfig = convertJSON(oldConfig, false);
-          LOGGER.info("Successfully rollbacked JobID: " + id);
-
-          updateJSONConfigStmt.setString(1, newConfig);
-          updateJSONConfigStmt.setInt(2, id);
-          updateJSONConfigStmt.addBatch();
-        }
-        updateJSONConfigStmt.executeBatch();
-        connection.commit();
-        connection.setAutoCommit(true);
-      } catch(SQLException ex) {
-        String errorMsg = "Could not migrate job configurations";
-        LOGGER.error(errorMsg);
-        throw new RollbackException(errorMsg, ex);
-      } finally {
-        closeConnections(stmt, updateJSONConfigStmt);
-      }
+      updateJSONConfigStmt.executeBatch();
+      connection.commit();
+      connection.setAutoCommit(true);
+    } catch (SQLException ex) {
+      String errorMsg = "Could not migrate job configurations";
+      LOGGER.error(errorMsg);
+      throw new RollbackException(errorMsg, ex);
+    } finally {
+      closeConnections(stmt, updateJSONConfigStmt);
+    }
     LOGGER.info("Starting jobConfig rollback");
   }
-
+  
   private void closeConnections(Statement stmt, PreparedStatement preparedStatement) {
     try {
-      if(stmt != null) {
+      if (stmt != null) {
         stmt.close();
       }
-      if(preparedStatement != null) {
+      if (preparedStatement != null) {
         preparedStatement.close();
       }
-    } catch(SQLException ex) {
+    } catch (SQLException ex) {
       //do nothing
     }
   }
