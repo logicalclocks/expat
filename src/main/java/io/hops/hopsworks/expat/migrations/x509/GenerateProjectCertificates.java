@@ -17,6 +17,8 @@
 package io.hops.hopsworks.expat.migrations.x509;
 
 import io.hops.hopsworks.common.util.HopsUtils;
+import io.hops.hopsworks.expat.db.dao.certificates.ExpatCertificate;
+import io.hops.hopsworks.expat.db.dao.user.ExpatUser;
 import io.hops.hopsworks.expat.migrations.MigrateStep;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
@@ -98,7 +100,7 @@ public class GenerateProjectCertificates extends GenerateCertificates implements
             continue;
           }
           String ownerEmail = projectRS.getString("username");
-          ExpatUser user = getExpatUserByEmail(ownerEmail);
+          ExpatUser user = expatUserFacade.getExpatUserByEmail(connection, ownerEmail);
           cert.setPlainPassword(HopsUtils.randomString(64));
           String cipherPassword = HopsUtils.encrypt(user.getPassword(), cert.getPlainPassword(), masterPassword);
           cert.setCipherPassword(cipherPassword);

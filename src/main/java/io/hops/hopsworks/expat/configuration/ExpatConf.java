@@ -20,6 +20,7 @@ package io.hops.hopsworks.expat.configuration;
 public class ExpatConf {
   private static final String EXPAT_PREFIX = "expat.";
   public static final String EXPAT_PATH = EXPAT_PREFIX + "dir";
+  public static final String DRY_RUN = EXPAT_PREFIX + "dry_run";
 
   // ------ Database Configuration ------ //
   private static final String DATABASE_PREFIX = "database.";
@@ -57,5 +58,13 @@ public class ExpatConf {
   
   // ------ Services -------- //
   private static final String SERVICES_PREFIX = "services.";
-  public static final String KIBANA_URI= SERVICES_PREFIX + "kibana-url";
+  public static final String KIBANA_URI = SERVICES_PREFIX + "kibana-url";
+
+  // ------ LDAP -------- //
+  private static final String LDAP_PREFIX = "ldap.";
+  public static final String LDAP_URL  = LDAP_PREFIX + "url";
+  public static final String LDAP_AUTHENTICATION = LDAP_PREFIX + "authentication";
+  public static final String LDAP_PRINCIPAL = LDAP_PREFIX + "principal";
+  public static final String LDAP_CREDENTIALS = LDAP_PREFIX + "credentials";
+  public static final String LDAP_BASE_DN_KEY = LDAP_PREFIX + "base-dn";
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * This file is part of Expat
  * Copyright (C) 2018, Logical Clocks AB. All rights reserved
  *
@@ -14,20 +14,21 @@
  * this program. If not, see <https://www.gnu.org/licenses/>.
  *
  */
-package io.hops.hopsworks.expat.migrations.x509;
+package io.hops.hopsworks.expat.db.dao.user;
 
 public class ExpatUser {
-  private final int uid;
-  private final String username;
-  private final String password;
-  private final String email;
-  private final String orcid;
-  private final String organization;
-  private final String country;
-  private final String city;
+  private int uid;
+  private String username;
+  private String password;
+  private String email;
+  private String orcid;
+  private String organization;
+  private String country;
+  private String city;
+  private String salt;
   
   public ExpatUser(int uid, String username, String password, String email, String orcid, String organization,
-      String country, String city) {
+      String country, String city, String salt) {
     this.uid = uid;
     this.username = username;
     this.password = password;
@@ -36,8 +37,9 @@ public class ExpatUser {
     this.organization = organization;
     this.country = country;
     this.city = city;
+    this.salt = salt;
   }
-  
+
   public int getUid() {
     return uid;
   }
@@ -68,5 +70,9 @@ public class ExpatUser {
   
   public String getCity() {
     return city;
+  }
+
+  public String getSalt() {
+    return salt;
   }
 }

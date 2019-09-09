@@ -56,6 +56,14 @@
         <user>anaconda</user>
     </conda>
 
+    <ldap>
+        <url></url>
+        <authentication></authentication>
+        <principal></principal>
+        <credentials></credentials>
+        <base-dn></base-dn>
+    </ldap>
+
     <version-06>
         io.hops.hopsworks.expat.migrations.kubernetes.CreateNS
         io.hops.hopsworks.expat.migrations.kubernetes.CreateCertSecrets

@@ -1,4 +1,4 @@
-/**
+/*
  * This file is part of Expat
  * Copyright (C) 2018, Logical Clocks AB. All rights reserved
  *
@@ -14,7 +14,7 @@
  * this program. If not, see <https://www.gnu.org/licenses/>.
  *
  */
-package io.hops.hopsworks.expat.migrations.x509;
+package io.hops.hopsworks.expat.db.dao.certificates;
 
 public class ExpatCertificate {
   private final String projectName;
@@ -28,7 +28,13 @@ public class ExpatCertificate {
     this.projectName = projectName;
     this.username = username;
   }
-  
+
+  public ExpatCertificate(String projectName, String username, String cipherPassword) {
+    this.projectName = projectName;
+    this.username = username;
+    this.cipherPassword = cipherPassword;
+  }
+
   public String getProjectName() {
     return projectName;
   }

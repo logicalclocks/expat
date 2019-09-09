@@ -19,9 +19,12 @@ package io.hops.hopsworks.expat.migrations.x509;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Files;
 import io.hops.hopsworks.common.util.ProcessDescriptor;
+import io.hops.hopsworks.expat.db.dao.certificates.ExpatCertificate;
+import io.hops.hopsworks.expat.db.dao.user.ExpatUser;
 import io.hops.hopsworks.expat.configuration.ConfigurationBuilder;
 import io.hops.hopsworks.expat.configuration.ExpatConf;
 import io.hops.hopsworks.expat.db.DbConnectionFactory;
+import io.hops.hopsworks.expat.db.dao.user.ExpatUserFacade;
 import io.hops.hopsworks.expat.executor.ProcessExecutor;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import org.apache.commons.configuration2.Configuration;
@@ -37,8 +40,6 @@ import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -46,12 +47,7 @@ import java.util.Set;
 
 public abstract class GenerateCertificates {
   private static final Logger LOGGER = LogManager.getLogger(GenerateCertificates.class);
-  
-  private final static String GET_USER_BY_USERNAME = "SELECT * FROM users WHERE username = ?";
-  private final static String GET_USER_BY_EMAIL = "SELECT * FROM users WHERE email = ?";
-  private final static String GET_ADDRESS_BY_UID = "SELECT * FROM address WHERE uid = ?";
-  private final static String GET_ORGANIZATION_BY_UID = "SELECT * FROM organization WHERE uid = ?";
-  
+
   protected Path certsBackupDir;
   protected Configuration config;
   protected Path masterPwdPath;
@@ -59,7 +55,8 @@ public abstract class GenerateCertificates {
   protected String masterPassword;
   protected String userCertsScript;
   protected Connection connection;
-  
+  protected ExpatUserFacade expatUserFacade;
+
   protected void setup(String backupDirPrefix)
       throws MigrationException, ConfigurationException, IOException, SQLException {
     String userHome = System.getProperty("user.home");
@@ -81,6 +78,7 @@ public abstract class GenerateCertificates {
     masterPassword = Files.toString(masterPwdPath.toFile(), Charset.defaultCharset());
     userCertsScript = config.getString(ExpatConf.CREATE_USER_CERT_SCRIPT);
     connection = DbConnectionFactory.getConnection();
+    expatUserFacade = new ExpatUserFacade();
   }
   
   protected void generateNewCertsAndUpdateDb(Map<ExpatCertificate, ExpatUser> certificates, String print)
@@ -145,70 +143,7 @@ public abstract class GenerateCertificates {
     userCert.setTrustStore(trustStore);
     LOGGER.info("Finished generating new certificate for " + userCert + " - " + idx + "/" + total);
   }
-  
-  protected ExpatUser getExpatUserByUsername(String username) throws SQLException {
-    PreparedStatement stmt = connection.prepareStatement(GET_USER_BY_USERNAME);
-    stmt.setString(1, username);
-    return getExpatUser(stmt);
-  }
-  
-  protected ExpatUser getExpatUserByEmail(String email) throws SQLException {
-    PreparedStatement stmt = connection.prepareStatement(GET_USER_BY_EMAIL);
-    stmt.setString(1, email);
-    return getExpatUser(stmt);
-  }
-  
-  private ExpatUser getExpatUser(PreparedStatement stmt) throws SQLException {
-    PreparedStatement addressStmt = null, orgStmt = null;
-    ResultSet userRS = null, addressRS = null, orgRS = null;
-    
-    try {
-      userRS = stmt.executeQuery();
-      userRS.next();
-      Integer uid = userRS.getInt("uid");
-      String email = userRS.getString("email");
-      String orcid = userRS.getString("orcid");
-      String userPassword = userRS.getString("password");
-      String username = userRS.getString("username");
-    
-      addressStmt = connection.prepareStatement(GET_ADDRESS_BY_UID);
-      addressStmt.setInt(1, uid);
-      addressRS = addressStmt.executeQuery();
-      addressRS.next();
-      String country = addressRS.getString("country");
-      String city = addressRS.getString("city");
-    
-    
-      orgStmt = connection.prepareStatement(GET_ORGANIZATION_BY_UID);
-      orgStmt.setInt(1, uid);
-      orgRS = orgStmt.executeQuery();
-      orgRS.next();
-      String organization = orgRS.getString("org_name");
-    
-    
-      return new ExpatUser(uid, username, userPassword, email, orcid, organization, country, city);
-    } finally {
-      if (userRS != null) {
-        userRS.close();
-      }
-      if (addressRS != null) {
-        addressRS.close();
-      }
-      if (orgRS != null) {
-        orgRS.close();
-      }
-      if (stmt != null) {
-        stmt.close();
-      }
-      if (addressStmt != null) {
-        addressStmt.close();
-      }
-      if (orgStmt != null) {
-        orgStmt.close();
-      }
-    }
-  }
-  
+
   abstract void updateCertificatesInDB(Set<ExpatCertificate> certificates, Connection connection)
       throws SQLException;
 }

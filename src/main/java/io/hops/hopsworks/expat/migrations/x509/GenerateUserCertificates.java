@@ -17,6 +17,8 @@
 package io.hops.hopsworks.expat.migrations.x509;
 
 import io.hops.hopsworks.common.util.HopsUtils;
+import io.hops.hopsworks.expat.db.dao.certificates.ExpatCertificate;
+import io.hops.hopsworks.expat.db.dao.user.ExpatUser;
 import io.hops.hopsworks.expat.migrations.MigrateStep;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
@@ -78,9 +80,7 @@ public class GenerateUserCertificates extends GenerateCertificates implements Mi
       throw new RollbackException("Could not rollback User Certificates", ex);
     }
   }
-  
-  
-  
+
   private Map<ExpatCertificate, ExpatUser> getUserCerts() throws Exception {
     Map<ExpatCertificate, ExpatUser> userCerts = new HashMap<>();
     ResultSet certsRS = null;
@@ -93,7 +93,7 @@ public class GenerateUserCertificates extends GenerateCertificates implements Mi
         String username = certsRS.getString("username");
     
         ExpatCertificate cert = new ExpatCertificate(projectName, username);
-        ExpatUser user = getExpatUserByUsername(username);
+        ExpatUser user = expatUserFacade.getExpatUserByUsername(connection, username);
         cert.setPlainPassword(HopsUtils.randomString(64));
         String cipherPassword = HopsUtils.encrypt(user.getPassword(), cert.getPlainPassword(), masterPassword);
         cert.setCipherPassword(cipherPassword);
