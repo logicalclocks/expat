@@ -34,7 +34,7 @@ public class ExpatCertificate {
     this.username = username;
     this.cipherPassword = cipherPassword;
   }
-
+  
   public String getProjectName() {
     return projectName;
   }
