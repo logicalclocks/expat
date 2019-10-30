@@ -18,6 +18,7 @@
 package io.hops.hopsworks.expat.db;
 
 import com.zaxxer.hikari.HikariDataSource;
+import io.hops.hopsworks.expat.Expat;
 import io.hops.hopsworks.expat.configuration.ConfigurationBuilder;
 import io.hops.hopsworks.expat.configuration.ExpatConf;
 import org.apache.commons.configuration2.Configuration;
@@ -39,6 +40,7 @@ public class DbConnectionFactory {
     ds.setJdbcUrl(config.getString(ExpatConf.DATABASE_URL));
     ds.setUsername(config.getString(ExpatConf.DATABASE_USER_KEY));
     ds.setPassword(config.getString(ExpatConf.DATABASE_PASSWORD_KEY));
+    ds.setReadOnly(config.getBoolean(ExpatConf.DRY_RUN));
   }
 
   public static Connection getConnection() throws ConfigurationException, SQLException {

@@ -39,7 +39,8 @@ public class CertificatesFacade {
       "SELECT * from user_certs WHERE username = ?";
 
   public void updateCertPassword(Connection connection,
-                                 ExpatCertificate expatCertificate, String newPassword, boolean dryRun) throws SQLException {
+                                 ExpatCertificate expatCertificate, String newPassword, boolean dryRun)
+      throws SQLException {
     try (PreparedStatement stmt = connection.prepareStatement(UPDATE_PWD)) {
 
       stmt.setString(1, newPassword);

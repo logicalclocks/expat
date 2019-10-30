@@ -36,7 +36,6 @@ import io.hops.hopsworks.expat.migrations.RollbackException;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
-import org.apache.kafka.common.config.ConfigDef;
 import org.apache.log4j.Level;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
@@ -73,6 +72,7 @@ public class RemoteUsers implements MigrateStep {
     dryrun = config.getBoolean(ExpatConf.DRY_RUN);
 
     dbConnection = DbConnectionFactory.getConnection();
+
     ldapQuery = new LDAPQuery(config);
 
     expatUserFacade = new ExpatUserFacade();
@@ -123,7 +123,8 @@ public class RemoteUsers implements MigrateStep {
     // No rollback. Once you tried krb you never go back
   }
 
-  private void addRemoteUser(Connection connection, String uuid, ExpatUser expatUser, boolean dryRun) throws SQLException {
+  private void addRemoteUser(Connection connection, String uuid, ExpatUser expatUser, boolean dryRun)
+      throws SQLException {
     RemoteUser remoteUser = new RemoteUser(2, expatUser.getPassword(), uuid, expatUser.getUid());
     remoteUserFacade.insertRemoteUser(connection, remoteUser, dryRun);
   }
@@ -134,7 +135,8 @@ public class RemoteUsers implements MigrateStep {
 
     for (ExpatCertificate certificate : userCertificates) {
       LOGGER.log(Level.INFO, "Updating password for certificate: " + certificate.getProjectName());
-      String decryptedCertPwd = HopsUtils.decrypt(expatUser.getPassword(), certificate.getCipherPassword(), masterPassword);
+      String decryptedCertPwd =
+         HopsUtils.decrypt(expatUser.getPassword(), certificate.getCipherPassword(), masterPassword);
       LOGGER.log(Level.INFO, "Certificate PWD: " + decryptedCertPwd);
       String newCertPwd = HopsUtils.encrypt(newUserPwd, decryptedCertPwd, masterPassword);
       certificatesFacade.updateCertPassword(dbConnection, certificate, newCertPwd, dryRun);
