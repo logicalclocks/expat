@@ -18,7 +18,6 @@
 package io.hops.hopsworks.expat.db;
 
 import com.zaxxer.hikari.HikariDataSource;
-import io.hops.hopsworks.expat.Expat;
 import io.hops.hopsworks.expat.configuration.ConfigurationBuilder;
 import io.hops.hopsworks.expat.configuration.ExpatConf;
 import org.apache.commons.configuration2.Configuration;

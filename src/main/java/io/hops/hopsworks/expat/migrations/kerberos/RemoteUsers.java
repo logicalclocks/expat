@@ -135,11 +135,15 @@ public class RemoteUsers implements MigrateStep {
 
     for (ExpatCertificate certificate : userCertificates) {
       LOGGER.log(Level.INFO, "Updating password for certificate: " + certificate.getProjectName());
-      String decryptedCertPwd =
-         HopsUtils.decrypt(expatUser.getPassword(), certificate.getCipherPassword(), masterPassword);
-      LOGGER.log(Level.INFO, "Certificate PWD: " + decryptedCertPwd);
-      String newCertPwd = HopsUtils.encrypt(newUserPwd, decryptedCertPwd, masterPassword);
-      certificatesFacade.updateCertPassword(dbConnection, certificate, newCertPwd, dryRun);
+      try {
+        String decryptedCertPwd =
+            HopsUtils.decrypt(expatUser.getPassword(), certificate.getCipherPassword(), masterPassword);
+        LOGGER.log(Level.INFO, "Certificate PWD: " + decryptedCertPwd);
+        String newCertPwd = HopsUtils.encrypt(newUserPwd, decryptedCertPwd, masterPassword);
+        certificatesFacade.updateCertPassword(dbConnection, certificate, newCertPwd, dryRun);
+      } catch (Exception e) {
+        LOGGER.log(Level.INFO, "Error Decrypting password for project certificate: " + certificate.getProjectName());
+      }
     }
 
     LOGGER.log(Level.INFO, "Updating password for user");
