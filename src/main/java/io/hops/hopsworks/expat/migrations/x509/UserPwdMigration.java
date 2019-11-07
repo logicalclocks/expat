@@ -79,7 +79,7 @@ public class UserPwdMigration implements MigrateStep {
       try {
         connection.rollback();
       } catch (Exception e1) {}
-      LOGGER.log(Level.FATAL, "Error doing shit", e);
+      LOGGER.log(Level.FATAL, "Error", e);
     } finally {
       try {
         if (connection != null) {
