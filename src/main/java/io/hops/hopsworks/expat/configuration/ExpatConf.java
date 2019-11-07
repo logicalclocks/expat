@@ -49,7 +49,8 @@ public class ExpatConf {
   private static final String CERTS_PREFIX = "x509.";
   public static final String MASTER_PWD_FILE_KEY = CERTS_PREFIX + "masterPwdFile";
   public static final String INTERMEDIATE_CA_PATH = CERTS_PREFIX + "intermediateCA";
-  public static final String CREATE_USER_CERT_SCRIPT = CERTS_PREFIX + "userCertsScript";
+  public static final String VALIDITY_DAYS = CERTS_PREFIX + "validityDays";
+  public static final String CA_PASSWORD = CERTS_PREFIX + "caPassword";
 
   // ------- Conda -------- //
   private static final String CONDA_PREFIX = "conda.";

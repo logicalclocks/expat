@@ -62,11 +62,10 @@ public class GenerateUserCertificates extends GenerateCertificates implements Mi
       LOGGER.error(errorMsg, ex);
       throw new MigrationException(errorMsg, ex);
     } catch (IOException ex) {
-      String errorMsg = "Could not read master password";
-      LOGGER.error(errorMsg, ex);
-      throw new MigrationException(errorMsg, ex);
+      LOGGER.error(ex.getMessage(), ex);
+      throw new MigrationException(ex.getMessage(), ex);
     } catch (Exception ex) {
-      String errorMsg = "Could not decrypt user password";
+      String errorMsg = "Generic error";
       LOGGER.error(errorMsg, ex);
       throw new MigrationException(errorMsg, ex);
     }

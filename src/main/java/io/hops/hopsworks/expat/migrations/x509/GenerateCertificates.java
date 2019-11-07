@@ -19,6 +19,7 @@ package io.hops.hopsworks.expat.migrations.x509;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Files;
 import io.hops.hopsworks.common.util.ProcessDescriptor;
+import io.hops.hopsworks.common.util.ProcessResult;
 import io.hops.hopsworks.expat.db.dao.certificates.ExpatCertificate;
 import io.hops.hopsworks.expat.db.dao.user.ExpatUser;
 import io.hops.hopsworks.expat.configuration.ConfigurationBuilder;
@@ -53,7 +54,7 @@ public abstract class GenerateCertificates {
   protected Path masterPwdPath;
   protected String intermediateCA;
   protected String masterPassword;
-  protected String userCertsScript;
+  private Path generateUserCertificatesSh;
   protected Connection connection;
   protected ExpatUserFacade expatUserFacade;
 
@@ -76,7 +77,8 @@ public abstract class GenerateCertificates {
     masterPwdPath = Paths.get(config.getString(ExpatConf.MASTER_PWD_FILE_KEY));
     intermediateCA = config.getString(ExpatConf.INTERMEDIATE_CA_PATH);
     masterPassword = Files.toString(masterPwdPath.toFile(), Charset.defaultCharset());
-    userCertsScript = config.getString(ExpatConf.CREATE_USER_CERT_SCRIPT);
+    generateUserCertificatesSh = Paths.get(config.getString(ExpatConf.EXPAT_PATH), "bin",
+        "generate_user_certificates.sh");
     connection = DbConnectionFactory.getConnection();
     expatUserFacade = new ExpatUserFacade();
   }
@@ -117,19 +119,19 @@ public abstract class GenerateCertificates {
     // Generate certificate
     ProcessDescriptor processDescriptor = new ProcessDescriptor.Builder()
         .addCommand("/usr/bin/sudo")
-        .addCommand(Paths.get(intermediateCA, userCertsScript).toString())
+        .addCommand(generateUserCertificatesSh.toString())
         .addCommand(id)
-        .addCommand(user.getCountry())
-        .addCommand(user.getCity())
-        .addCommand(user.getOrganization())
-        .addCommand(user.getEmail())
-        .addCommand(user.getOrcid())
         .addCommand(userCert.getPlainPassword())
-        .ignoreOutErrStreams(true)
+        .addCommand(config.getString(ExpatConf.VALIDITY_DAYS, "3650"))
+        .addCommand(config.getString(ExpatConf.CA_PASSWORD))
+        .redirectErrorStream(true)
         .build();
     
-    ProcessExecutor.getExecutor().execute(processDescriptor);
-    
+    ProcessResult result = ProcessExecutor.getExecutor().execute(processDescriptor);
+    if (result.getExitCode() != 0) {
+      throw new IOException("Failed to generate certificate for " + id
+        + " Reason: " + result.getStdout());
+    }
     File keyStoreFile = Paths.get("/tmp", id + "__kstore.jks").toFile();
     File trustStoreFile = Paths.get("/tmp", id + "__tstore.jks").toFile();
     byte[] keyStore, trustStore;
