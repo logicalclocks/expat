@@ -31,6 +31,7 @@
 
     <services>
         <kibana-url>http://localhost:5601</kibana-url>
+        <elastic-url>http://localhost:9200</elastic-url>
     </services>
 
     <kube>
@@ -71,6 +72,11 @@
         <base-dn></base-dn>
     </ldap>
 
+    <elastic>
+        <user></user>
+        <pass></pass>
+    </elastic>
+
     <version-06>
         io.hops.hopsworks.expat.migrations.kubernetes.CreateNS
         io.hops.hopsworks.expat.migrations.kubernetes.CreateCertSecrets
@@ -96,6 +102,7 @@
     <version-11>
         io.hops.hopsworks.expat.migrations.elk.MultiTenantKibana
         io.hops.hopsworks.expat.migrations.jobs.UpdateJobArgsConfiguration
+        io.hops.hopsworks.expat.migrations.projects.provenance.UpdateProvenance
     </version-11>
 </expat>
 

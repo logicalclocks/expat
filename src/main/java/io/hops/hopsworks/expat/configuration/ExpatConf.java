@@ -60,6 +60,7 @@ public class ExpatConf {
   // ------ Services -------- //
   private static final String SERVICES_PREFIX = "services.";
   public static final String KIBANA_URI = SERVICES_PREFIX + "kibana-url";
+  public static final String ELASTIC_URI = SERVICES_PREFIX + "elastic-url";
 
   // ------ LDAP -------- //
   private static final String LDAP_PREFIX = "ldap.";
@@ -72,4 +73,9 @@ public class ExpatConf {
   public static final String HOPSWORKS_PREFIX = "hopsworks.";
   public static final String HOPSWORKS_URL  = HOPSWORKS_PREFIX + "url";
   public static final String HOPSWORKS_SERVICE_JWT  = HOPSWORKS_PREFIX + "serviceJwt";
+  
+  // ------ Elastic Configuration ------ //
+  private static final String ELASTIC_PREFIX = "elastic.";
+  public static final String ELASTIC_USER_KEY = ELASTIC_PREFIX + "user";
+  public static final String ELASTIC_PASS_KEY = ELASTIC_PREFIX + "pass";
 }
