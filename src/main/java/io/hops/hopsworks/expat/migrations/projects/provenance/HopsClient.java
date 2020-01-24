@@ -24,17 +24,12 @@ import org.apache.hadoop.fs.XAttrSetFlag;
 import org.apache.hadoop.security.UserGroupInformation;
 import java.io.File;
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.EnumSet;
 
 public class HopsClient {
   
-  private final static String HDFS_ENDPOINT = "SELECT rpc_addresses FROM hops.hdfs_le_descriptors ";
   
-  public static DistributedFileSystemOps getDFSO(Connection connection) throws SQLException {
+  public static DistributedFileSystemOps getDFSO() {
     String hadoopHome = System.getenv("HADOOP_HOME");
     if(hadoopHome == null || hadoopHome == "") {
       throw new IllegalArgumentException("env HADOOP_HOME is not set");
@@ -58,36 +53,9 @@ public class HopsClient {
     conf.addResource(hadoopPath);
     conf.addResource(hdfsPath);
     conf.set(CommonConfigurationKeys.FS_PERMISSIONS_UMASK_KEY, "0027");
-    conf.setStrings("dfs.namenode.rpc-address", getRPCEndpoint(connection));
     UserGroupInformation superUser = UserGroupInformation.createRemoteUser("hdfs");
     DistributedFileSystemOps dfso = new DistributedFileSystemOps(superUser, conf);
     return dfso;
-  }
-  
-  private static String getRPCEndpoint(Connection connection) throws SQLException, IllegalStateException {
-    PreparedStatement hdfsEndpointStmt = null;
-    try {
-      hdfsEndpointStmt = connection.prepareStatement(HDFS_ENDPOINT);
-      ResultSet hdfsEndpointResultSet = hdfsEndpointStmt.executeQuery();
-      if (hdfsEndpointResultSet.next()) {
-        //return first RPC - for migration we are not that interested in load balancing
-        String rpcAddresses = hdfsEndpointResultSet.getString(1);
-        rpcAddresses = rpcAddresses.trim();
-        
-        if(rpcAddresses.contains(",")) {
-          String[] rpcAddressArr = rpcAddresses.split(",");
-          return rpcAddressArr[0];
-        } else {
-          return rpcAddresses;
-        }
-      } else {
-        throw new IllegalStateException("no hdfs rpc endpoint");
-      }
-    } finally {
-      if(hdfsEndpointStmt != null) {
-        hdfsEndpointStmt.close();
-      }
-    }
   }
   
   public static void upsertXAttr(DistributedFileSystemOps dfso, String path, String name, byte[] value)

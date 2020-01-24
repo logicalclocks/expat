@@ -129,7 +129,7 @@ public class UpdateProvenance implements MigrateStep {
     DistributedFileSystemOps dfso = null;
     try {
       setup();
-      dfso = HopsClient.getDFSO(connection);
+      dfso = HopsClient.getDFSO();
       traverseElements(projectMigrate(dfso), datasetMigrate(dfso));
     } catch (IllegalStateException | SQLException | ConfigurationException | GeneralSecurityException | IOException e) {
       throw new MigrationException("error", e);
@@ -151,7 +151,7 @@ public class UpdateProvenance implements MigrateStep {
     DistributedFileSystemOps dfso = null;
     try {
       setup();
-      dfso = HopsClient.getDFSO(connection);
+      dfso = HopsClient.getDFSO();
       traverseElements(projectRollback(dfso), datasetRollback(dfso));
       ElasticClient.deleteAppProvenanceIndex(httpClient, elastic, elasticUser, elasticPass);
     } catch (IllegalStateException | SQLException | ConfigurationException | GeneralSecurityException | IOException e) {
@@ -192,7 +192,7 @@ public class UpdateProvenance implements MigrateStep {
         }
         
         ProjectParams projectParams = ProjectParams.instance(allProjectsResultSet, projectInodeResultSet);
-        LOGGER.debug("processing project:{}", projectParams.projectName);
+        LOGGER.info("processing project:{}", projectParams.projectName);
         //get all project datasets
         allProjectDatasetsStmt = getProjectDatasetsStmt(allProjectsResultSet);
         ResultSet allProjectDatasetsResultSet = allProjectDatasetsStmt.executeQuery();
@@ -215,7 +215,7 @@ public class UpdateProvenance implements MigrateStep {
         //update project meta status xattr
         
         projectAction.accept(projectParams);
-        LOGGER.debug("processed project:{}", projectParams.projectName);
+        LOGGER.info("processed project:{}", projectParams.projectName);
         projectInodeStmt.close();
         allProjectDatasetsStmt.close();
       }
