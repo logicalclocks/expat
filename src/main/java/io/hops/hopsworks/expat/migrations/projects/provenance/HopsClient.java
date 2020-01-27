@@ -29,9 +29,9 @@ import java.util.EnumSet;
 public class HopsClient {
   
   
-  public static DistributedFileSystemOps getDFSO() {
+  public static DistributedFileSystemOps getDFSO(String clientUser) {
     String hadoopHome = System.getenv("HADOOP_HOME");
-    if(hadoopHome == null || hadoopHome == "") {
+    if(hadoopHome == null || hadoopHome.equals("")) {
       throw new IllegalArgumentException("env HADOOP_HOME is not set");
     }
     String hadoopConfDir = hadoopHome + "/etc/hadoop";
@@ -53,7 +53,8 @@ public class HopsClient {
     conf.addResource(hadoopPath);
     conf.addResource(hdfsPath);
     conf.set(CommonConfigurationKeys.FS_PERMISSIONS_UMASK_KEY, "0027");
-    UserGroupInformation superUser = UserGroupInformation.createRemoteUser("hdfs");
+    
+    UserGroupInformation superUser = UserGroupInformation.createRemoteUser(clientUser);
     DistributedFileSystemOps dfso = new DistributedFileSystemOps(superUser, conf);
     return dfso;
   }
