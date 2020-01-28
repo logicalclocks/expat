@@ -106,14 +106,14 @@ public class UpdateJobArgsConfiguration implements MigrateStep {
       addKeyValue(configJson, "args", value);
     }
     
-    return null;
+    return "";
   }
   
   private String removeKeyIfExists(JSONObject config, String key) {
     if (config.has(key)) {
       return (String) config.remove(key);
     }
-    return null;
+    return "";
   }
   
   private void addKeyValue(JSONObject configJson, String key, String value) {
