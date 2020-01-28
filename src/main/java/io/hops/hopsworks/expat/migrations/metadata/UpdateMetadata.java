@@ -17,10 +17,14 @@
 package io.hops.hopsworks.expat.migrations.metadata;
 
 import io.hops.hopsworks.common.hdfs.DistributedFileSystemOps;
+import io.hops.hopsworks.expat.configuration.ConfigurationBuilder;
+import io.hops.hopsworks.expat.configuration.ExpatConf;
 import io.hops.hopsworks.expat.migrations.MigrateStep;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
 import io.hops.hopsworks.expat.migrations.projects.provenance.HopsClient;
+import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.logging.log4j.LogManager;
@@ -38,15 +42,25 @@ public class UpdateMetadata implements MigrateStep {
     Path.SEPARATOR + "Projects" + Path.SEPARATOR + "Uploads" + Path.SEPARATOR;
   protected Connection connection;
   
+  private String hopsUser;
+  
+  private void setup() throws ConfigurationException {
+    Configuration conf = ConfigurationBuilder.getConfiguration();
+    hopsUser = conf.getString(ExpatConf.HOPS_CLIENT_USER);
+    if (hopsUser == null) {
+      throw new ConfigurationException(ExpatConf.HOPS_CLIENT_USER + " cannot be null");
+    }
+  }
   @Override
   public void migrate() throws MigrationException {
     LOGGER.info("metadata migration");
     DistributedFileSystemOps dfso = null;
     try {
-      dfso = HopsClient.getDFSO();
+      setup();
+      dfso = HopsClient.getDFSO(hopsUser);
       move(dfso, oldPath, newPath);
       dfso.rm(new Path(oldPath), true);
-    } catch (IllegalStateException | IOException e) {
+    } catch (IllegalStateException | ConfigurationException | IOException e) {
       throw new MigrationException("error", e);
     } finally {
       if (dfso != null) {
@@ -60,10 +74,11 @@ public class UpdateMetadata implements MigrateStep {
     LOGGER.info("metadata rollback");
     DistributedFileSystemOps dfso = null;
     try {
-      dfso = HopsClient.getDFSO();
+      setup();
+      dfso = HopsClient.getDFSO(hopsUser);
       move(dfso, newPath, oldPath);
       dfso.rm(new Path(oldPath), true);
-    } catch (IllegalStateException | IOException e) {
+    } catch (IllegalStateException | ConfigurationException | IOException e) {
       throw new RollbackException("error", e);
     } finally {
       if (dfso != null) {

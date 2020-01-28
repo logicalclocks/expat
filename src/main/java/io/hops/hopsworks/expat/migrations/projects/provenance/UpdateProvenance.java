@@ -84,6 +84,7 @@ public class UpdateProvenance implements MigrateStep {
   private HttpHost elastic;
   private String elasticUser;
   private String elasticPass;
+  private String hopsUser;
   
   private void setup()
     throws SQLException, ConfigurationException, GeneralSecurityException {
@@ -104,7 +105,10 @@ public class UpdateProvenance implements MigrateStep {
     if (elasticPass == null) {
       throw new ConfigurationException(ExpatConf.ELASTIC_PASS_KEY + " cannot be null");
     }
-  
+    hopsUser = conf.getString(ExpatConf.HOPS_CLIENT_USER);
+    if (hopsUser == null) {
+      throw new ConfigurationException(ExpatConf.HOPS_CLIENT_USER + " cannot be null");
+    }
     httpClient = HttpClients
       .custom()
       .setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(
@@ -129,7 +133,7 @@ public class UpdateProvenance implements MigrateStep {
     DistributedFileSystemOps dfso = null;
     try {
       setup();
-      dfso = HopsClient.getDFSO();
+      dfso = HopsClient.getDFSO(hopsUser);
       traverseElements(projectMigrate(dfso), datasetMigrate(dfso));
     } catch (IllegalStateException | SQLException | ConfigurationException | GeneralSecurityException | IOException e) {
       throw new MigrationException("error", e);
@@ -151,7 +155,7 @@ public class UpdateProvenance implements MigrateStep {
     DistributedFileSystemOps dfso = null;
     try {
       setup();
-      dfso = HopsClient.getDFSO();
+      dfso = HopsClient.getDFSO(hopsUser);
       traverseElements(projectRollback(dfso), datasetRollback(dfso));
       ElasticClient.deleteAppProvenanceIndex(httpClient, elastic, elasticUser, elasticPass);
     } catch (IllegalStateException | SQLException | ConfigurationException | GeneralSecurityException | IOException e) {
