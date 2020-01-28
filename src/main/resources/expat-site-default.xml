@@ -71,6 +71,17 @@
         <base-dn></base-dn>
     </ldap>
 
+    <elastic>
+        <user></user>
+        <pass></pass>
+    </elastic>
+
+    <hops>
+        <client>
+            <user></user>
+        </client>
+    </hops>
+
     <version-06>
         io.hops.hopsworks.expat.migrations.kubernetes.CreateNS
         io.hops.hopsworks.expat.migrations.kubernetes.CreateCertSecrets

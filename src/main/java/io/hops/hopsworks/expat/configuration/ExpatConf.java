@@ -72,4 +72,12 @@ public class ExpatConf {
   public static final String HOPSWORKS_PREFIX = "hopsworks.";
   public static final String HOPSWORKS_URL  = HOPSWORKS_PREFIX + "url";
   public static final String HOPSWORKS_SERVICE_JWT  = HOPSWORKS_PREFIX + "serviceJwt";
+  
+  // ------ Elastic Configuration ------ //
+  private static final String ELASTIC_PREFIX = "elastic.";
+  public static final String ELASTIC_USER_KEY = ELASTIC_PREFIX + "user";
+  public static final String ELASTIC_PASS_KEY = ELASTIC_PREFIX + "pass";
+  // ------ Hops Configuration ------ //
+  private static final String HOPS_PREFIX = "hops.";
+  public static final String HOPS_CLIENT_USER = HOPS_PREFIX + "client.user";
 }
