@@ -246,10 +246,14 @@ public class UpdateProvenance implements MigrateStep {
   private CheckedConsumer<ProjectParams, MigrationException> projectMigrate(DistributedFileSystemOps dfso) {
     return params -> {
       try {
+        String projectPath = getProjectPath(params.projectName);
+        if(!dfso.isDir(projectPath)) {
+          LOGGER.warn("project with no directory:{}", projectPath);
+          return;
+        }
         JAXBContext jaxbContext = jaxbContext();
         ProvCoreDTO provCore = new ProvCoreDTO(Provenance.Type.MIN.dto, params.projectIId);
         byte[] bProvCore = jaxbParser(jaxbContext, provCore).getBytes();
-        String projectPath = getProjectPath(params.projectName);
     
         HopsClient.upsertXAttr(dfso, projectPath, "provenance.core", bProvCore);
       } catch (JAXBException | IOException e) {
@@ -262,6 +266,10 @@ public class UpdateProvenance implements MigrateStep {
     return params -> {
       String datasetPath = getDatasetPath(params.projectIId, params.projectName, params.datasetPId, params.datasetName);
       try {
+        if(!dfso.isDir(datasetPath)) {
+          LOGGER.warn("dataset with no directory:{}", datasetPath);
+          return;
+        }
         JAXBContext jaxbContext = jaxbContext();
         ProvCoreDTO provCore;
         if (params.metaStatus == 0) {
@@ -288,6 +296,11 @@ public class UpdateProvenance implements MigrateStep {
     return params -> {
       try {
         String projectPath = getProjectPath(params.projectName);
+        if(!dfso.isDir(projectPath)) {
+          LOGGER.warn("project with no directory:{}", projectPath);
+          return;
+        }
+       
         HopsClient.removeXAttr(dfso, projectPath, "provenance.core");
         ElasticClient.deleteProvenanceProjectIndex(httpClient, elastic, params.projectIId, elasticUser, elasticPass);
       } catch (IOException e) {
@@ -300,6 +313,10 @@ public class UpdateProvenance implements MigrateStep {
     return params -> {
       String datasetPath = getDatasetPath(params.projectIId, params.projectName, params.datasetPId, params.datasetName);
       try {
+        if(!dfso.isDir(datasetPath)) {
+          LOGGER.warn("dataset with no directory:{}", datasetPath);
+          return;
+        }
         if (params.metaStatus == 2 || params.metaStatus == 3) {
           dfso.setMetaStatus(datasetPath, Inode.MetaStatus.META_ENABLED);
         }
