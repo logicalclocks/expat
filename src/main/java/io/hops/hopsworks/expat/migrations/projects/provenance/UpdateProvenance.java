@@ -16,11 +16,9 @@
  */
 package io.hops.hopsworks.expat.migrations.projects.provenance;
 
-import io.hops.hopsworks.common.dao.hdfs.inode.Inode;
 import io.hops.hopsworks.common.hdfs.DistributedFileSystemOps;
 import io.hops.hopsworks.common.provenance.core.Provenance;
 import io.hops.hopsworks.common.provenance.core.dto.ProvCoreDTO;
-import io.hops.hopsworks.common.provenance.core.dto.ProvFeatureDTO;
 import io.hops.hopsworks.common.provenance.core.dto.ProvTypeDTO;
 import io.hops.hopsworks.common.provenance.util.functional.CheckedConsumer;
 import io.hops.hopsworks.expat.configuration.ConfigurationBuilder;
@@ -29,6 +27,7 @@ import io.hops.hopsworks.expat.db.DbConnectionFactory;
 import io.hops.hopsworks.expat.migrations.MigrateStep;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
+import io.hops.hopsworks.persistence.entity.hdfs.inode.Inode;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.http.HttpHost;
