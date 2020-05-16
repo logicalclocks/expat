@@ -179,7 +179,13 @@ public class UpdateTrainingdatasetsForSearch implements MigrateStep {
       Date createDate = formatter.parse(allFSTrainingdatasetsResultSet.getString(GET_TRAININGDATASET_S_CREATED));
       String creator = getCreator(allFSTrainingdatasetsResultSet);
       TrainingDatasetXAttrDTO xattr = new TrainingDatasetXAttrDTO(featurestoreId, description, createDate, creator);
-      dfso.upsertXAttr(trainingdatasetPath, "provenance.featurestore", jaxbParser(jaxbContext, xattr).getBytes());
+      byte[] val = jaxbParser(jaxbContext, xattr).getBytes();
+      if(val.length > 13500) {
+        LOGGER.warn("xattr too large - skipping attaching features to trainingdataset");
+        xattr = new TrainingDatasetXAttrDTO(featurestoreId, description, createDate, creator);
+        val = jaxbParser(jaxbContext, xattr).getBytes();
+      }
+      dfso.upsertXAttr(trainingdatasetPath, "provenance.featurestore", val);
     };
   }
   

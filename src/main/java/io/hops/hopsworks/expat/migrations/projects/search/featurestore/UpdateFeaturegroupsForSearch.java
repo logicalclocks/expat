@@ -206,7 +206,13 @@ public class UpdateFeaturegroupsForSearch implements MigrateStep {
       List<String> features = getFeatures(allFSFeaturegroupsResultSet);
       FeaturegroupXAttr.FullDTO xattr = new FeaturegroupXAttr.FullDTO(featurestoreId, description, createDate,
         creator, features);
-      dfso.upsertXAttr(featuregroupPath, "provenance.featurestore", jaxbParser(jaxbContext, xattr).getBytes());
+      byte[] val = jaxbParser(jaxbContext, xattr).getBytes();
+      if(val.length > 13500) {
+        LOGGER.warn("xattr too large - skipping attaching features to featuregroup");
+        xattr = new FeaturegroupXAttr.FullDTO(featurestoreId, description, createDate, creator);
+        val = jaxbParser(jaxbContext, xattr).getBytes();
+      }
+      dfso.upsertXAttr(featuregroupPath, "provenance.featurestore", val);
     };
   }
   
