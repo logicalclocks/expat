@@ -27,6 +27,9 @@ import io.hops.hopsworks.expat.db.DbConnectionFactory;
 import io.hops.hopsworks.expat.migrations.MigrateStep;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
+import io.hops.hopsworks.expat.migrations.projects.util.XAttrException;
+import io.hops.hopsworks.expat.migrations.projects.util.XAttrHelper;
+import io.hops.hopsworks.expat.migrations.projects.util.HopsClient;
 import io.hops.hopsworks.persistence.entity.hdfs.inode.Inode;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
@@ -254,8 +257,8 @@ public class UpdateProvenance implements MigrateStep {
         ProvCoreDTO provCore = new ProvCoreDTO(Provenance.Type.MIN.dto, params.projectIId);
         byte[] bProvCore = jaxbParser(jaxbContext, provCore).getBytes();
     
-        HopsClient.upsertXAttr(dfso, projectPath, "provenance.core", bProvCore);
-      } catch (JAXBException | IOException e) {
+        XAttrHelper.upsertProvXAttr(dfso, projectPath, "core", bProvCore);
+      } catch (JAXBException | XAttrException e) {
         throw new MigrationException("error", e);
       }
     };
@@ -284,8 +287,8 @@ public class UpdateProvenance implements MigrateStep {
           throw new IllegalStateException("unknown meta status:" + params.metaStatus);
         }
         byte[] bProvCore = jaxbParser(jaxbContext, provCore).getBytes();
-        HopsClient.upsertXAttr(dfso, datasetPath, "provenance.core", bProvCore);
-      } catch (JAXBException | IOException e) {
+        XAttrHelper.upsertProvXAttr(dfso, datasetPath, "core", bProvCore);
+      } catch (JAXBException | IOException | XAttrException e) {
         throw new MigrationException("error", e);
       }
     };

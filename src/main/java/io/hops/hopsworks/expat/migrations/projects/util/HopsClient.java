@@ -14,21 +14,17 @@
  * this program. If not, see <https://www.gnu.org/licenses/>.
  *
  */
-package io.hops.hopsworks.expat.migrations.projects.provenance;
+package io.hops.hopsworks.expat.migrations.projects.util;
 
 import io.hops.hopsworks.common.hdfs.DistributedFileSystemOps;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.CommonConfigurationKeys;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.XAttrSetFlag;
 import org.apache.hadoop.security.UserGroupInformation;
 import java.io.File;
 import java.io.IOException;
-import java.util.EnumSet;
 
 public class HopsClient {
-  
-  
   public static DistributedFileSystemOps getDFSO(String clientUser) {
     String hadoopHome = System.getenv("HADOOP_HOME");
     if(hadoopHome == null || hadoopHome.equals("")) {
@@ -59,20 +55,9 @@ public class HopsClient {
     return dfso;
   }
   
-  public static void upsertXAttr(DistributedFileSystemOps dfso, String path, String name, byte[] value)
-    throws IOException {
-    EnumSet<XAttrSetFlag> flags = EnumSet.noneOf(XAttrSetFlag.class);
-    if(dfso.getXAttr(path, name) != null) {
-      flags.add(XAttrSetFlag.REPLACE);
-    } else {
-      flags.add(XAttrSetFlag.CREATE);
-    }
-    dfso.setXAttr(path, name, value, flags);
-  }
-  
   public static void removeXAttr(DistributedFileSystemOps dfso, String path, String name) throws IOException {
-    if(dfso.getXAttr(path, name) != null) {
-      dfso.removeXAttr(path, name);
+    if(dfso.getXAttr(new Path(path), name) != null) {
+      dfso.removeXAttr(new Path(path), name);
     }
   }
 }

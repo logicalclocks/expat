@@ -25,9 +25,11 @@ import io.hops.hopsworks.expat.db.DbConnectionFactory;
 import io.hops.hopsworks.expat.migrations.MigrateStep;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
-import io.hops.hopsworks.expat.migrations.projects.provenance.HopsClient;
+import io.hops.hopsworks.expat.migrations.projects.util.HopsClient;
+import io.hops.hopsworks.expat.migrations.projects.util.XAttrHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.ipc.RemoteException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -196,7 +198,7 @@ public class UpdateTrainingdatasetsForSearch implements MigrateStep {
         LOGGER.warn("xattr too large - skipping attaching features to trainingdataset");
         xattr = new TrainingDatasetXAttrDTO(featurestoreId, description, createDate, creator);
       }
-      byte[] existingVal = dfso.getXAttr(trainingdatasetPath, "provenance.featurestore");
+      byte[] existingVal = dfso.getXAttr(new Path(trainingdatasetPath), "provenance.featurestore");
       if(existingVal == null) {
         LOGGER.info("featuregroup:{} rollbacked (no value)", trainingdatasetPath);
       } else {
@@ -231,16 +233,7 @@ public class UpdateTrainingdatasetsForSearch implements MigrateStep {
         xattr = new TrainingDatasetXAttrDTO(featurestoreId, description, createDate, creator);
         val = jaxbMarshal(jaxbContext, xattr).getBytes();
       }
-      try{
-        dfso.upsertXAttr(trainingdatasetPath, "provenance.featurestore", val);
-      } catch (RemoteException e) {
-        if(e.getMessage().startsWith("At least one of the attributes provided was not found.")) {
-          LOGGER.info("no previous xattr featuregroup:{}", trainingdatasetPath);
-          dfso.insertXAttr(trainingdatasetPath, "provenance.featurestore", val);
-        } else {
-          throw e;
-        }
-      }
+      XAttrHelper.upsertProvXAttr(dfso, trainingdatasetPath, "featurestore", val);
     };
   }
   
@@ -253,7 +246,7 @@ public class UpdateTrainingdatasetsForSearch implements MigrateStep {
       LOGGER.info("trainingdataset:{}", trainingdatasetPath);
   
       try {
-        dfso.removeXAttr(trainingdatasetPath, "provenance.featurestore");
+        dfso.removeXAttr(new Path(trainingdatasetPath), "provenance.featurestore");
       } catch(RemoteException ex) {
         if(ex.getMessage().startsWith("No matching attributes found for remove operation")) {
           //ignore

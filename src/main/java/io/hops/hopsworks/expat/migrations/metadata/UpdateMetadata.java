@@ -22,7 +22,7 @@ import io.hops.hopsworks.expat.configuration.ExpatConf;
 import io.hops.hopsworks.expat.migrations.MigrateStep;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
-import io.hops.hopsworks.expat.migrations.projects.provenance.HopsClient;
+import io.hops.hopsworks.expat.migrations.projects.util.HopsClient;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.hadoop.fs.Path;

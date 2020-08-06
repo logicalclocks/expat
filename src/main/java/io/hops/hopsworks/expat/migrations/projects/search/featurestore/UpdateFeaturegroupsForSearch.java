@@ -25,9 +25,12 @@ import io.hops.hopsworks.expat.db.DbConnectionFactory;
 import io.hops.hopsworks.expat.migrations.MigrateStep;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
-import io.hops.hopsworks.expat.migrations.projects.provenance.HopsClient;
+import io.hops.hopsworks.expat.migrations.projects.util.HopsClient;
+import io.hops.hopsworks.expat.migrations.projects.util.XAttrException;
+import io.hops.hopsworks.expat.migrations.projects.util.XAttrHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.ipc.RemoteException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -223,7 +226,7 @@ public class UpdateFeaturegroupsForSearch implements MigrateStep {
         xattr = new FeaturegroupXAttr.FullDTO(featurestoreId, description, createDate, creator);
       }
     
-      byte[] existingVal = dfso.getXAttr(featuregroupPath, "provenance.featurestore");
+      byte[] existingVal = dfso.getXAttr(new Path(featuregroupPath), "provenance.featurestore");
       if(existingVal == null) {
         LOGGER.info("featuregroup:{} rollbacked (no value)", featuregroupPath);
       } else {
@@ -265,14 +268,9 @@ public class UpdateFeaturegroupsForSearch implements MigrateStep {
         val = jaxbMarshal(jaxbContext, xattr).getBytes();
       }
       try{
-        dfso.upsertXAttr(featuregroupPath, "provenance.featurestore", val);
-      } catch (RemoteException e) {
-        if(e.getMessage().startsWith("At least one of the attributes provided was not found.")) {
-          LOGGER.info("no previous xattr featuregroup:{}", featuregroupPath);
-          dfso.insertXAttr(featuregroupPath, "provenance.featurestore", val);
-        } else {
-          throw e;
-        }
+        XAttrHelper.upsertProvXAttr(dfso, featuregroupPath, "featurestore", val);
+      } catch (XAttrException e) {
+        throw e;
       }
     };
   }
@@ -285,7 +283,7 @@ public class UpdateFeaturegroupsForSearch implements MigrateStep {
       String featuregroupPath = getFeaturegroupPath(projectName, featuregroupName, featuregroupVersion);
       LOGGER.info("featuregroup:{}", featuregroupPath);
       try {
-        dfso.removeXAttr(featuregroupPath, "provenance.featurestore");
+        dfso.removeXAttr(new Path(featuregroupPath), "provenance.featurestore");
       } catch(RemoteException ex) {
         if(ex.getMessage().startsWith("No matching attributes found for remove operation")) {
           //ignore
