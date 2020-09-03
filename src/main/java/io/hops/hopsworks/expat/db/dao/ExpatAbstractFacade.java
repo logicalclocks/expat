@@ -16,8 +16,6 @@
  */
 package io.hops.hopsworks.expat.db.dao;
 
-import com.mysql.jdbc.NotImplemented;
-
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -189,7 +187,7 @@ public abstract class ExpatAbstractFacade<E extends ExpatAbstractEntity> {
     } else if (parameterObj instanceof BigInteger) {
       preparedStatement.setString(i, parameterObj.toString());
     } else {
-      throw new NotImplemented();
+      throw new SQLException("Not implemented");
     }
   }
 }
