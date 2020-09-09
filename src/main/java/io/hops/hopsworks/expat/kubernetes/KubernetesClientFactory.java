@@ -45,6 +45,7 @@ public class KubernetesClientFactory {
           .withClientCertFile(config.getString(ExpatConf.KUBE_CERTFILE_KEY))
           .withClientKeyFile(config.getString(ExpatConf.KUBE_KEYFILE_KEY))
           .withClientKeyPassphrase(config.getString(ExpatConf.KUBE_KEYPWD_KEY))
+          .withHttp2Disable(true)
           .build();
     }
 
