@@ -24,7 +24,7 @@
 
     <database>
         <url>jdbc:mysql://192.168.100.101:3306/hopsworks</url>
-        <driver>com.mysql.jdbc.Driver</driver>
+        <driver>com.mysql.cj.jdbc.Driver</driver>
         <user>user</user>
         <password>password</password>
     </database>
@@ -121,5 +121,8 @@
         io.hops.hopsworks.expat.migrations.conda.DockerConda
         io.hops.hopsworks.expat.migrations.dataset.FixDatasetPermission
     </version-14>
+    <version-20>
+        io.hops.hopsworks.expat.migrations.projects.appprovenance.ReindexV1
+    </version-20>
 </expat>
 

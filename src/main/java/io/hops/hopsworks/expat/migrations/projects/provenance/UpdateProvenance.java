@@ -24,6 +24,7 @@ import io.hops.hopsworks.common.provenance.util.functional.CheckedConsumer;
 import io.hops.hopsworks.expat.configuration.ConfigurationBuilder;
 import io.hops.hopsworks.expat.configuration.ExpatConf;
 import io.hops.hopsworks.expat.db.DbConnectionFactory;
+import io.hops.hopsworks.expat.elastic.ElasticClient;
 import io.hops.hopsworks.expat.migrations.MigrateStep;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
