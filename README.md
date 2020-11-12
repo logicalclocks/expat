@@ -36,3 +36,4 @@ You may need to set the `dry_run` to true or false when you run expat.
 HADOOP_USER_NAME=hdfs HOPSWORKS_EAR_HOME=/srv/hops/domains/domain1/applications/hopsworks-ear~1.4.0-SNAPSHOT bin/expat -a migrate -v 1.4.0
 
 
+
