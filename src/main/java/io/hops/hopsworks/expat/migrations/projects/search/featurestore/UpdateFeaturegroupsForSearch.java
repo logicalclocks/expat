@@ -103,7 +103,7 @@ public class UpdateFeaturegroupsForSearch implements MigrateStep {
   JAXBContext jaxbContext;
   boolean dryrun = false;
   
-  private void setup() throws ConfigurationException, SQLException, JAXBException {
+  public void setup() throws ConfigurationException, SQLException, JAXBException {
     formatter = new SimpleDateFormat("yyyy-M-dd hh:mm:ss", Locale.ENGLISH);
     jaxbContext = jaxbContext();
     
@@ -240,7 +240,7 @@ public class UpdateFeaturegroupsForSearch implements MigrateStep {
     };
   }
   
-  private CheckedBiConsumer<ResultSet, ResultSet, Exception> migrateFeaturegroup() {
+  public CheckedBiConsumer<ResultSet, ResultSet, Exception> migrateFeaturegroup() {
     return (ResultSet allFeaturestoresResultSet, ResultSet allFSFeaturegroupsResultSet) -> {
       String projectName = getProjectName(allFeaturestoresResultSet);
       String featuregroupName = allFSFeaturegroupsResultSet.getString(GET_HIVE_MANAGED_FEATUREGROUPS_S_NAME);

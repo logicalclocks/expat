@@ -9,13 +9,13 @@ import io.hops.hopsworks.expat.db.DbConnectionFactory;
 import io.hops.hopsworks.expat.migrations.MigrateStep;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
+import io.hops.hopsworks.expat.migrations.projects.search.featurestore.UpdateFeaturegroupsForSearch;
 import io.hops.hopsworks.expat.migrations.projects.util.HopsClient;
 import io.hops.hopsworks.expat.migrations.projects.util.XAttrException;
 import io.hops.hopsworks.expat.migrations.projects.util.XAttrHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.ipc.RemoteException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.persistence.jaxb.JAXBContextFactory;
@@ -81,6 +81,8 @@ public class UpdateFeatureGroupFeatureDescription implements MigrateStep {
   private final static int GET_PROJECT_W_ID = 1;
   private final static int GET_PROJECT_S_NAME = 1;
   
+  UpdateFeaturegroupsForSearch updateFeaturegroupsForSearch;
+  
   protected Connection connection = null;
   DistributedFileSystemOps dfso = null;
   private String hopsUser;
@@ -101,6 +103,8 @@ public class UpdateFeatureGroupFeatureDescription implements MigrateStep {
     }
     dfso = HopsClient.getDFSO(hopsUser);
     dryrun = conf.getBoolean(ExpatConf.DRY_RUN);
+  
+    updateFeaturegroupsForSearch = new UpdateFeaturegroupsForSearch();
   }
   
   private void close() throws SQLException {
@@ -141,7 +145,7 @@ public class UpdateFeatureGroupFeatureDescription implements MigrateStep {
       if(dryrun) {
         traverseElements(dryRunFeaturegroup());
       } else {
-        traverseElements(revertFeaturegroup());
+        traverseElements(updateFeaturegroupsForSearch.migrateFeaturegroup());
       }
     } catch (Exception e) {
       throw new RollbackException("error", e);
@@ -256,25 +260,6 @@ public class UpdateFeatureGroupFeatureDescription implements MigrateStep {
         XAttrHelper.upsertProvXAttr(dfso, featuregroupPath, "featurestore", val);
       } catch (XAttrException e) {
         throw e;
-      }
-    };
-  }
-  
-  private CheckedBiConsumer<ResultSet, ResultSet, Exception> revertFeaturegroup() {
-    return (ResultSet allFeaturestoresResultSet, ResultSet allFSFeaturegroupsResultSet) -> {
-      String projectName = getProjectName(allFeaturestoresResultSet);
-      String featuregroupName = allFSFeaturegroupsResultSet.getString(GET_HIVE_MANAGED_FEATUREGROUPS_S_NAME);
-      int featuregroupVersion = allFSFeaturegroupsResultSet.getInt(GET_HIVE_MANAGED_FEATUREGROUPS_S_VERSION);
-      String featuregroupPath = getFeaturegroupPath(projectName, featuregroupName, featuregroupVersion);
-      LOGGER.info("featuregroup:{}", featuregroupPath);
-      try {
-        dfso.removeXAttr(new Path(featuregroupPath), "provenance.featurestore");
-      } catch(RemoteException ex) {
-        if(ex.getMessage().startsWith("No matching attributes found for remove operation")) {
-          //ignore
-        } else {
-          throw ex;
-        }
       }
     };
   }
