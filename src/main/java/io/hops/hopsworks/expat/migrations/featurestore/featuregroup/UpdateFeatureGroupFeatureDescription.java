@@ -71,11 +71,12 @@ public class UpdateFeatureGroupFeatureDescription implements MigrateStep {
   private final static int GET_FG_DESCRIPTION_W_PARAM = 2;
   private final static int GET_FG_DESCRIPTION_S_DESCRIPTION = 1;
   private final static String GET_FG_FEATURES =
-    "SELECT c.COLUMN_NAME FROM metastore.TBLS t " +
+    "SELECT c.COLUMN_NAME, c.COMMENT FROM metastore.TBLS t " +
       "JOIN metastore.SDS s JOIN metastore.COLUMNS_V2 c " +
       "ON t.SD_ID=s.SD_ID AND s.CD_ID=c.CD_ID WHERE t.TBL_ID = ?";
   private final static int GET_FG_FEATURES_W_TBL_ID = 1;
   private final static int GET_FG_FEATURES_S_NAME = 1;
+  private final static int GET_FG_FEATURES_S_COMMENT = 2;
   private final static String GET_PROJECT = "SELECT inode_name FROM project WHERE id=?";
   private final static int GET_PROJECT_W_ID = 1;
   private final static int GET_PROJECT_S_NAME = 1;
@@ -348,7 +349,7 @@ public class UpdateFeatureGroupFeatureDescription implements MigrateStep {
       List<FeaturegroupXAttr.SimpleFeatureDTO> features = new LinkedList<>();
       while (fgFeaturesResultSet.next()) {
         features.add(new FeaturegroupXAttr.SimpleFeatureDTO(fgFeaturesResultSet.getString(GET_FG_FEATURES_S_NAME),
-          fgFeaturesResultSet.getString("description")));
+          fgFeaturesResultSet.getString(GET_FG_FEATURES_S_COMMENT)));
       }
       return features;
     } finally {
