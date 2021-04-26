@@ -348,8 +348,11 @@ public class UpdateFeatureGroupFeatureDescription implements MigrateStep {
       ResultSet fgFeaturesResultSet = fgFeaturesStmt.executeQuery();
       List<FeaturegroupXAttr.SimpleFeatureDTO> features = new LinkedList<>();
       while (fgFeaturesResultSet.next()) {
-        features.add(new FeaturegroupXAttr.SimpleFeatureDTO(fgFeaturesResultSet.getString(GET_FG_FEATURES_S_NAME),
-          fgFeaturesResultSet.getString(GET_FG_FEATURES_S_COMMENT)));
+        features.add(fgFeaturesResultSet.getString(GET_FG_FEATURES_S_COMMENT) != null ?
+          new FeaturegroupXAttr.SimpleFeatureDTO(
+            fgFeaturesResultSet.getString(GET_FG_FEATURES_S_NAME),
+            fgFeaturesResultSet.getString(GET_FG_FEATURES_S_COMMENT)) :
+          new FeaturegroupXAttr.SimpleFeatureDTO(fgFeaturesResultSet.getString(GET_FG_FEATURES_S_NAME)));
       }
       return features;
     } finally {

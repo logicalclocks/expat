@@ -182,7 +182,11 @@ public class FeaturegroupXAttr {
     private String description;
     
     public SimpleFeatureDTO() {}
-    
+
+    public SimpleFeatureDTO(String name) {
+      this.name = name;
+    }
+
     public SimpleFeatureDTO(String name, String description) {
       this.name = name;
       this.description = description;
