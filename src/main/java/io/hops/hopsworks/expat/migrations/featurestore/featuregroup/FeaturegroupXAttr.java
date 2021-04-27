@@ -4,14 +4,17 @@ import io.hops.hopsworks.expat.migrations.projects.search.featurestore.Featurest
 
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlType;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 
+@XmlType(name="fg_xattr_v2")
 public class FeaturegroupXAttr {
   /**
    * common fields
    */
+  @XmlType(name="base_v2")
   public static abstract class Base {
     @XmlElement(nillable = false, name = FeaturestoreXAttrsConstants.FEATURESTORE_ID)
     private Integer featurestoreId;
@@ -41,6 +44,7 @@ public class FeaturegroupXAttr {
   /**
    * document attached as an xattr to a featuregroup directory
    */
+  @XmlType(name="fulldto_v2")
   @XmlRootElement
   public static class FullDTO extends Base {
     @XmlElement(nillable = true, name = FeaturestoreXAttrsConstants.DESCRIPTION)
@@ -125,6 +129,7 @@ public class FeaturegroupXAttr {
    * simplified version of FullDTO that is part of the
    * @link io.hops.hopsworks.common.featurestore.xattr.dto.TrainingDatasetXAttrDTO
    */
+  @XmlType(name="simplifieddto_v2")
   @XmlRootElement
   public static class SimplifiedDTO extends Base {
     @XmlElement(nillable = false, name = FeaturestoreXAttrsConstants.NAME)

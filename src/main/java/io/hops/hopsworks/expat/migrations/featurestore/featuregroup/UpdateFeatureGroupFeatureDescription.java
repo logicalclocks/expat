@@ -219,12 +219,11 @@ public class UpdateFeatureGroupFeatureDescription implements MigrateStep {
       if(existingVal == null) {
         LOGGER.info("featuregroup:{} rollbacked (no value)", featuregroupPath);
       } else {
-        FeaturegroupXAttr.FullDTO existingXAttr = jaxbUnmarshal(jaxbContext, existingVal);
-        if(existingXAttr.equals(xattr)) {
-          LOGGER.info("featuregroup:{} migrated (correct value)", featuregroupPath);
-        } else {
-          LOGGER.info("featuregroup:{} bad value", featuregroupPath);
-        }
+        LOGGER.info("featuregroup:{} old xattr", featuregroupPath);
+        LOGGER.info("{}", updateFeaturegroupsForSearch.jaxbMarshal(jaxbContext, jaxbUnmarshal(jaxbContext,
+          existingVal)));
+        LOGGER.info("featuregroup:{} migrated xattr", featuregroupPath);
+        LOGGER.info("{}", jaxbMarshal(jaxbContext, xattr));
       }
     };
   }
@@ -374,16 +373,19 @@ public class UpdateFeatureGroupFeatureDescription implements MigrateStep {
         ProvCoreDTO.class,
         ProvTypeDTO.class,
         FeaturegroupXAttr.FullDTO.class,
-        FeaturegroupXAttr.SimpleFeatureDTO.class
+        FeaturegroupXAttr.SimpleFeatureDTO.class,
+        io.hops.hopsworks.expat.migrations.projects.search.featurestore.FeaturegroupXAttr.FullDTO.class
       },
       properties);
     return context;
   }
   
-  private FeaturegroupXAttr.FullDTO jaxbUnmarshal(JAXBContext jaxbContext, byte[] val) throws JAXBException {
+  private io.hops.hopsworks.expat.migrations.projects.search.featurestore.FeaturegroupXAttr.FullDTO jaxbUnmarshal(
+      JAXBContext jaxbContext, byte[] val) throws JAXBException {
     Unmarshaller unmarshaller = jaxbContext.createUnmarshaller();
     StreamSource ss = new StreamSource(new StringReader(new String(val)));
-    return unmarshaller.unmarshal(ss, FeaturegroupXAttr.FullDTO.class).getValue();
+    return unmarshaller.unmarshal(ss,
+      io.hops.hopsworks.expat.migrations.projects.search.featurestore.FeaturegroupXAttr.FullDTO.class).getValue();
   }
   
   private String jaxbMarshal(JAXBContext jaxbContext, FeaturegroupXAttr.FullDTO xattr) throws JAXBException {

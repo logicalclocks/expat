@@ -409,7 +409,7 @@ public class UpdateFeaturegroupsForSearch implements MigrateStep {
     return unmarshaller.unmarshal(ss, FeaturegroupXAttr.FullDTO.class).getValue();
   }
   
-  private String jaxbMarshal(JAXBContext jaxbContext, FeaturegroupXAttr.FullDTO xattr) throws JAXBException {
+  public String jaxbMarshal(JAXBContext jaxbContext, FeaturegroupXAttr.FullDTO xattr) throws JAXBException {
     Marshaller marshaller = jaxbContext.createMarshaller();
     StringWriter sw = new StringWriter();
     marshaller.marshal(xattr, sw);

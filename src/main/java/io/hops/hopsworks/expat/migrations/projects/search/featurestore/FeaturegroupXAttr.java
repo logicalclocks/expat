@@ -104,7 +104,10 @@ public class FeaturegroupXAttr {
     private Long createDate;
     @XmlElement(nillable = true, name = FeaturestoreXAttrsConstants.CREATOR)
     private String creator;
-    
+    @XmlElement(nillable = true, name = "type")
+    private String type;
+  
+  
     public FullDTO() {
       super();
     }
@@ -143,6 +146,14 @@ public class FeaturegroupXAttr {
     
     public void setCreator(String creator) {
       this.creator = creator;
+    }
+    
+    public String getType() {
+      return type;
+    }
+    
+    public void setType() {
+      this.type = type;
     }
     
     @Override
