@@ -35,12 +35,14 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class UpdateFeatureGroupFeatureDescription implements MigrateStep {
   private final static Logger LOGGER = LogManager.getLogger(UpdateFeatureGroupFeatureDescription.class);
@@ -74,12 +76,18 @@ public class UpdateFeatureGroupFeatureDescription implements MigrateStep {
     "SELECT c.COLUMN_NAME, c.COMMENT FROM metastore.TBLS t " +
       "JOIN metastore.SDS s JOIN metastore.COLUMNS_V2 c " +
       "ON t.SD_ID=s.SD_ID AND s.CD_ID=c.CD_ID WHERE t.TBL_ID = ?";
+  private final static String GET_FG_PARTITION_FEATURES =
+    "SELECT t.PKEY_NAME, t.PKEY_COMMENT from metastore.PARTITION_KEYS t " +
+      "WHERE t.TBL_ID = ?";
   private final static int GET_FG_FEATURES_W_TBL_ID = 1;
   private final static int GET_FG_FEATURES_S_NAME = 1;
   private final static int GET_FG_FEATURES_S_COMMENT = 2;
   private final static String GET_PROJECT = "SELECT inode_name FROM project WHERE id=?";
   private final static int GET_PROJECT_W_ID = 1;
   private final static int GET_PROJECT_S_NAME = 1;
+  
+  private static final List<String> HUDI_SPEC_FEATURE_NAMES = Arrays.asList("_hoodie_record_key",
+    "_hoodie_partition_path", "_hoodie_commit_time", "_hoodie_file_name", "_hoodie_commit_seqno");
   
   UpdateFeaturegroupsForSearch updateFeaturegroupsForSearch;
   
@@ -220,7 +228,8 @@ public class UpdateFeatureGroupFeatureDescription implements MigrateStep {
         LOGGER.info("featuregroup:{} rollbacked (no value)", featuregroupPath);
       } else {
         LOGGER.info("featuregroup:{} old xattr", featuregroupPath);
-        LOGGER.info("{}", updateFeaturegroupsForSearch.jaxbMarshal(jaxbContext, jaxbUnmarshal(jaxbContext,
+        LOGGER.info("{}", updateFeaturegroupsForSearch.jaxbMarshal(updateFeaturegroupsForSearch.getJaxbContext(),
+          updateFeaturegroupsForSearch.jaxbUnmarshal(updateFeaturegroupsForSearch.getJaxbContext(),
           existingVal)));
         LOGGER.info("featuregroup:{} migrated xattr", featuregroupPath);
         LOGGER.info("{}", jaxbMarshal(jaxbContext, xattr));
@@ -280,8 +289,8 @@ public class UpdateFeatureGroupFeatureDescription implements MigrateStep {
     stmt.setString(GET_FG_DESCRIPTION_W_PARAM, "comment");
     return stmt;
   }
-  private PreparedStatement getFGFeaturesStmt(ResultSet allFSFeaturegroupsResultSet) throws SQLException {
-    PreparedStatement stmt = connection.prepareStatement(GET_FG_FEATURES);
+  private PreparedStatement getFGFeaturesStmt(String sql, ResultSet allFSFeaturegroupsResultSet) throws SQLException {
+    PreparedStatement stmt = connection.prepareStatement(sql);
     stmt.setInt(GET_FG_FEATURES_W_TBL_ID, allFSFeaturegroupsResultSet.getInt(GET_HIVE_MANAGED_FEATUREGROUPS_S_TBL_ID));
     return stmt;
   }
@@ -326,11 +335,24 @@ public class UpdateFeatureGroupFeatureDescription implements MigrateStep {
   
   private List<FeaturegroupXAttr.SimpleFeatureDTO> getFeatures(ResultSet allFSFeaturegroupsResultSet)
       throws SQLException {
+    List<FeaturegroupXAttr.SimpleFeatureDTO> features = new LinkedList<>();
+    // regular features
+    features.addAll(getFeatures(GET_FG_FEATURES, allFSFeaturegroupsResultSet));
+    // features used as partition keys
+    features.addAll(getFeatures(GET_FG_PARTITION_FEATURES, allFSFeaturegroupsResultSet));
+    // filter hudi columns
+    return features.stream()
+      .filter(feature -> !HUDI_SPEC_FEATURE_NAMES.contains(feature.getName())).collect(Collectors.toList());
+  }
+
+  private List<FeaturegroupXAttr.SimpleFeatureDTO> getFeatures(String sql, ResultSet allFSFeaturegroupsResultSet)
+      throws SQLException {
     PreparedStatement fgFeaturesStmt = null;
     try {
-      fgFeaturesStmt = getFGFeaturesStmt(allFSFeaturegroupsResultSet);
+      fgFeaturesStmt = getFGFeaturesStmt(sql, allFSFeaturegroupsResultSet);
       ResultSet fgFeaturesResultSet = fgFeaturesStmt.executeQuery();
       List<FeaturegroupXAttr.SimpleFeatureDTO> features = new LinkedList<>();
+      // regular features
       while (fgFeaturesResultSet.next()) {
         features.add(fgFeaturesResultSet.getString(GET_FG_FEATURES_S_COMMENT) != null ?
           new FeaturegroupXAttr.SimpleFeatureDTO(
@@ -373,8 +395,7 @@ public class UpdateFeatureGroupFeatureDescription implements MigrateStep {
         ProvCoreDTO.class,
         ProvTypeDTO.class,
         FeaturegroupXAttr.FullDTO.class,
-        FeaturegroupXAttr.SimpleFeatureDTO.class,
-        io.hops.hopsworks.expat.migrations.projects.search.featurestore.FeaturegroupXAttr.FullDTO.class
+        FeaturegroupXAttr.SimpleFeatureDTO.class
       },
       properties);
     return context;

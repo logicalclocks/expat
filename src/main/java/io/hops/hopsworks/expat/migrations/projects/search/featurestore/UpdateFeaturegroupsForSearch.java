@@ -127,6 +127,15 @@ public class UpdateFeaturegroupsForSearch implements MigrateStep {
     }
   }
   
+  public JAXBContext getJaxbContext() throws JAXBException {
+    if (jaxbContext != null) {
+      return jaxbContext;
+    }
+    
+    jaxbContext = jaxbContext();
+    return jaxbContext;
+  }
+
   @Override
   public void migrate() throws MigrationException {
     LOGGER.info("featuregroup search migration");
@@ -403,7 +412,7 @@ public class UpdateFeaturegroupsForSearch implements MigrateStep {
     return context;
   }
   
-  private FeaturegroupXAttr.FullDTO jaxbUnmarshal(JAXBContext jaxbContext, byte[] val) throws JAXBException {
+  public FeaturegroupXAttr.FullDTO jaxbUnmarshal(JAXBContext jaxbContext, byte[] val) throws JAXBException {
     Unmarshaller unmarshaller = jaxbContext.createUnmarshaller();
     StreamSource ss = new StreamSource(new StringReader(new String(val)));
     return unmarshaller.unmarshal(ss, FeaturegroupXAttr.FullDTO.class).getValue();
