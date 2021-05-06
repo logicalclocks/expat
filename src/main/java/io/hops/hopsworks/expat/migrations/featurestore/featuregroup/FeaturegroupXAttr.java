@@ -1,6 +1,6 @@
 /**
  * This file is part of Expat
- * Copyright (C) 2020, Logical Clocks AB. All rights reserved
+ * Copyright (C) 2021, Logical Clocks AB. All rights reserved
  *
  * Expat is free software: you can redistribute it and/or modify it under the terms of
  * the GNU Affero General Public License as published by the Free Software Foundation,
@@ -14,18 +14,16 @@
  * this program. If not, see <https://www.gnu.org/licenses/>.
  *
  */
-package io.hops.hopsworks.expat.migrations.projects.search.featurestore;
 
-import io.hops.hopsworks.common.featurestore.xattr.dto.FeaturestoreXAttrsConstants;
+package io.hops.hopsworks.expat.migrations.featurestore.featuregroup;
+
+import io.hops.hopsworks.expat.migrations.projects.search.featurestore.FeaturestoreXAttrsConstants;
 
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Objects;
 
 public class FeaturegroupXAttr {
   /**
@@ -35,18 +33,10 @@ public class FeaturegroupXAttr {
     @XmlElement(nillable = false, name = FeaturestoreXAttrsConstants.FEATURESTORE_ID)
     private Integer featurestoreId;
     
-    @XmlElement(nillable = false, name = FeaturestoreXAttrsConstants.FG_FEATURES)
-    private List<String> features = new LinkedList<>();
-    
     public Base() {}
     
     public Base(Integer featurestoreId) {
-      this(featurestoreId, new LinkedList<>());
-    }
-    
-    public Base(Integer featurestoreId, List<String> features) {
       this.featurestoreId = featurestoreId;
-      this.features = features;
     }
     
     public Integer getFeaturestoreId() {
@@ -57,39 +47,11 @@ public class FeaturegroupXAttr {
       this.featurestoreId = featurestoreId;
     }
     
-    public List<String> getFeatures() {
-      return features;
-    }
-    
-    public void setFeatures(List<String> features) {
-      this.features = features;
-    }
-    
-    public void addFeature(String feature) {
-      features.add(feature);
-    }
-    
     @Override
     public String toString() {
       return "Base{" +
         "featurestoreId=" + featurestoreId +
-        ", features=" + features +
         '}';
-    }
-  
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (!(o instanceof Base)) {
-        return false;
-      }
-      Base base = (Base) o;
-      Collection<String> f = new ArrayList<>(this.getFeatures());
-      f.removeAll(base.getFeatures());
-      return Objects.equals(featurestoreId, base.featurestoreId) &&
-        (getFeatures().size() == base.getFeatures().size() && f.isEmpty());
     }
   }
   
@@ -97,14 +59,17 @@ public class FeaturegroupXAttr {
    * document attached as an xattr to a featuregroup directory
    */
   @XmlRootElement
-  public static class FullDTO extends FeaturegroupXAttr.Base {
+  public static class FullDTO extends Base {
     @XmlElement(nillable = true, name = FeaturestoreXAttrsConstants.DESCRIPTION)
     private String description;
     @XmlElement(nillable = true, name = FeaturestoreXAttrsConstants.CREATE_DATE)
     private Long createDate;
     @XmlElement(nillable = true, name = FeaturestoreXAttrsConstants.CREATOR)
     private String creator;
-
+    @XmlElement(nillable = false, name = FeaturestoreXAttrsConstants.FG_FEATURES)
+    private List<SimpleFeatureDTO>
+      features = new LinkedList<>();
+    
     public FullDTO() {
       super();
     }
@@ -114,8 +79,9 @@ public class FeaturegroupXAttr {
     }
     
     public FullDTO(Integer featurestoreId, String description,
-      Date createDate, String creator, List<String> features) {
-      super(featurestoreId, features);
+      Date createDate, String creator, List<SimpleFeatureDTO> features) {
+      super(featurestoreId);
+      this.features = features;
       this.description = description;
       this.createDate = createDate.getTime();
       this.creator = creator;
@@ -145,29 +111,30 @@ public class FeaturegroupXAttr {
       this.creator = creator;
     }
     
+    public List<SimpleFeatureDTO> getFeatures() {
+      return features;
+    }
+    
+    public void setFeatures(List<SimpleFeatureDTO> features) {
+      this.features = features;
+    }
+    
+    public void addFeature(SimpleFeatureDTO feature) {
+      features.add(feature);
+    }
+    
+    public void addFeatures(List<SimpleFeatureDTO> features) {
+      this.features.addAll(features);
+    }
+    
     @Override
     public String toString() {
       return super.toString() + "Extended{" +
         "description='" + description + '\'' +
         ", createDate=" + createDate +
         ", creator='" + creator + '\'' +
+        ", features=" + features +
         '}';
-    }
-  
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (!(o instanceof FullDTO)) {
-        return false;
-      }
-      FullDTO fullDTO = (FullDTO) o;
-      //for some reasone create date is not the same - minor issue
-      return super.equals(o) &&
-        Objects.equals(description, fullDTO.description) &&
-        //Objects.equals(createDate, fullDTO.createDate) &&
-        Objects.equals(creator, fullDTO.creator);
     }
   }
   
@@ -176,11 +143,13 @@ public class FeaturegroupXAttr {
    * @link io.hops.hopsworks.common.featurestore.xattr.dto.TrainingDatasetXAttrDTO
    */
   @XmlRootElement
-  public static class SimplifiedDTO extends FeaturegroupXAttr.Base {
+  public static class SimplifiedDTO extends Base {
     @XmlElement(nillable = false, name = FeaturestoreXAttrsConstants.NAME)
     private String name;
     @XmlElement(nillable = false, name = FeaturestoreXAttrsConstants.VERSION)
     private Integer version;
+    @XmlElement(nillable = false, name = FeaturestoreXAttrsConstants.FG_FEATURES)
+    private List<String> features = new LinkedList<>();
     
     public SimplifiedDTO() {
       super();
@@ -206,23 +175,63 @@ public class FeaturegroupXAttr {
     public void setVersion(Integer version) {
       this.version = version;
     }
+    
+    public List<String> getFeatures() {
+      return features;
+    }
+    
+    public void setFeatures(List<String> features) {
+      this.features = features;
+    }
+    
+    public void addFeature(String feature) {
+      features.add(feature);
+    }
+    
+    public void addFeatures(List<String> features) {
+      this.features.addAll(features);
+    }
+  }
   
+  @XmlRootElement
+  public static class SimpleFeatureDTO {
+    private String name;
+    private String description;
+    
+    public SimpleFeatureDTO() {}
+
+    public SimpleFeatureDTO(String name) {
+      this.name = name;
+    }
+
+    public SimpleFeatureDTO(String name, String description) {
+      this.name = name;
+      this.description = description;
+    }
+    
+    public String getName() {
+      return name;
+    }
+    
+    public void setName(String name) {
+      this.name = name;
+    }
+    
+    public String getDescription() {
+      return description;
+    }
+    
+    public void setDescription(String description) {
+      this.description = description;
+    }
+    
     @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (!(o instanceof SimplifiedDTO)) {
-        return false;
-      }
-      if (!super.equals(o)) {
-        return false;
-      }
-      SimplifiedDTO that = (SimplifiedDTO) o;
-      return
-        super.equals(o) &&
-        Objects.equals(name, that.name) &&
-        Objects.equals(version, that.version);
+    public String toString() {
+      return "SimpleFeatureDTO{" +
+        "name='" + name + '\'' +
+        ", description='" + description + '\'' +
+        '}';
     }
   }
 }
+

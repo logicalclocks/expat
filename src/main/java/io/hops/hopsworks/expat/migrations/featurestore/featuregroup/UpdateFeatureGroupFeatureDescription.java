@@ -1,6 +1,6 @@
 /**
  * This file is part of Expat
- * Copyright (C) 2020, Logical Clocks AB. All rights reserved
+ * Copyright (C) 2021, Logical Clocks AB. All rights reserved
  *
  * Expat is free software: you can redistribute it and/or modify it under the terms of
  * the GNU Affero General Public License as published by the Free Software Foundation,
@@ -14,7 +14,8 @@
  * this program. If not, see <https://www.gnu.org/licenses/>.
  *
  */
-package io.hops.hopsworks.expat.migrations.projects.search.featurestore;
+
+package io.hops.hopsworks.expat.migrations.featurestore.featuregroup;
 
 import io.hops.hopsworks.common.hdfs.DistributedFileSystemOps;
 import io.hops.hopsworks.common.provenance.core.dto.ProvCoreDTO;
@@ -25,13 +26,13 @@ import io.hops.hopsworks.expat.db.DbConnectionFactory;
 import io.hops.hopsworks.expat.migrations.MigrateStep;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
+import io.hops.hopsworks.expat.migrations.projects.search.featurestore.UpdateFeaturegroupsForSearch;
 import io.hops.hopsworks.expat.migrations.projects.util.HopsClient;
 import io.hops.hopsworks.expat.migrations.projects.util.XAttrException;
 import io.hops.hopsworks.expat.migrations.projects.util.XAttrHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.ipc.RemoteException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.persistence.jaxb.JAXBContextFactory;
@@ -51,15 +52,17 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Collectors;
 
-public class UpdateFeaturegroupsForSearch implements MigrateStep {
-  private final static Logger LOGGER = LogManager.getLogger(UpdateFeaturegroupsForSearch.class);
+public class UpdateFeatureGroupFeatureDescription implements MigrateStep {
+  private final static Logger LOGGER = LogManager.getLogger(UpdateFeatureGroupFeatureDescription.class);
   
   private final static String GET_ALL_FEATURESTORES = "SELECT id, project_id FROM feature_store";
   private final static int GET_ALL_FEATURESTORES_S_ID = 1;
@@ -67,8 +70,8 @@ public class UpdateFeaturegroupsForSearch implements MigrateStep {
   private final static String GET_HIVE_MANAGED_FEATUREGROUPS =
     "SELECT f.name, f.version, f.created, f.creator, t.TBL_ID, s.LOCATION " +
     "FROM hopsworks.feature_group f JOIN hopsworks.cached_feature_group c JOIN metastore.TBLS t JOIN metastore.SDS s " +
-    "ON f.cached_feature_group_id=c.id AND c.offline_feature_group = t.TBL_ID AND t.SD_ID=s.SD_ID " +
-    "WHERE t.TBL_TYPE = \"MANAGED_TABLE\" AND feature_store_id=?";
+      "ON f.cached_feature_group_id=c.id AND c.offline_feature_group = t.TBL_ID AND t.SD_ID=s.SD_ID " +
+      "WHERE t.TBL_TYPE = \"MANAGED_TABLE\" AND feature_store_id=?";
   private final static int GET_HIVE_MANAGED_FEATUREGROUPS_W_FS_ID = 1;
   private final static int GET_HIVE_MANAGED_FEATUREGROUPS_S_NAME = 1;
   private final static int GET_HIVE_MANAGED_FEATUREGROUPS_S_VERSION = 2;
@@ -82,19 +85,28 @@ public class UpdateFeaturegroupsForSearch implements MigrateStep {
   private final static int GET_USER_S_EMAIL = 1;
   private final static String GET_FG_DESCRIPTION =
     "SELECT PARAM_VALUE FROM metastore.TABLE_PARAMS " +
-    "WHERE TBL_ID=? AND PARAM_KEY=?";
+      "WHERE TBL_ID=? AND PARAM_KEY=?";
   private final static int GET_FG_DESCRIPTION_W_TBL_ID = 1;
   private final static int GET_FG_DESCRIPTION_W_PARAM = 2;
   private final static int GET_FG_DESCRIPTION_S_DESCRIPTION = 1;
   private final static String GET_FG_FEATURES =
-    "SELECT c.COLUMN_NAME FROM metastore.TBLS t " +
-    "JOIN metastore.SDS s JOIN metastore.COLUMNS_V2 c " +
-    "ON t.SD_ID=s.SD_ID AND s.CD_ID=c.CD_ID WHERE t.TBL_ID = ?";
+    "SELECT c.COLUMN_NAME, c.COMMENT FROM metastore.TBLS t " +
+      "JOIN metastore.SDS s JOIN metastore.COLUMNS_V2 c " +
+      "ON t.SD_ID=s.SD_ID AND s.CD_ID=c.CD_ID WHERE t.TBL_ID = ?";
+  private final static String GET_FG_PARTITION_FEATURES =
+    "SELECT t.PKEY_NAME, t.PKEY_COMMENT from metastore.PARTITION_KEYS t " +
+      "WHERE t.TBL_ID = ?";
   private final static int GET_FG_FEATURES_W_TBL_ID = 1;
   private final static int GET_FG_FEATURES_S_NAME = 1;
+  private final static int GET_FG_FEATURES_S_COMMENT = 2;
   private final static String GET_PROJECT = "SELECT inode_name FROM project WHERE id=?";
   private final static int GET_PROJECT_W_ID = 1;
   private final static int GET_PROJECT_S_NAME = 1;
+  
+  private static final List<String> HUDI_SPEC_FEATURE_NAMES = Arrays.asList("_hoodie_record_key",
+    "_hoodie_partition_path", "_hoodie_commit_time", "_hoodie_file_name", "_hoodie_commit_seqno");
+  
+  UpdateFeaturegroupsForSearch updateFeaturegroupsForSearch;
   
   protected Connection connection = null;
   DistributedFileSystemOps dfso = null;
@@ -103,7 +115,7 @@ public class UpdateFeaturegroupsForSearch implements MigrateStep {
   JAXBContext jaxbContext;
   boolean dryrun = false;
   
-  public void setup() throws ConfigurationException, SQLException, JAXBException {
+  private void setup() throws ConfigurationException, SQLException, JAXBException {
     formatter = new SimpleDateFormat("yyyy-M-dd hh:mm:ss", Locale.ENGLISH);
     jaxbContext = jaxbContext();
     
@@ -116,6 +128,8 @@ public class UpdateFeaturegroupsForSearch implements MigrateStep {
     }
     dfso = HopsClient.getDFSO(hopsUser);
     dryrun = conf.getBoolean(ExpatConf.DRY_RUN);
+  
+    updateFeaturegroupsForSearch = new UpdateFeaturegroupsForSearch();
   }
   
   private void close() throws SQLException {
@@ -127,18 +141,9 @@ public class UpdateFeaturegroupsForSearch implements MigrateStep {
     }
   }
   
-  public JAXBContext getJaxbContext() throws JAXBException {
-    if (jaxbContext != null) {
-      return jaxbContext;
-    }
-    
-    jaxbContext = jaxbContext();
-    return jaxbContext;
-  }
-
   @Override
   public void migrate() throws MigrationException {
-    LOGGER.info("featuregroup search migration");
+    LOGGER.info("featuregroup feature description migration");
     try {
       setup();
       if(dryrun) {
@@ -159,13 +164,13 @@ public class UpdateFeaturegroupsForSearch implements MigrateStep {
   
   @Override
   public void rollback() throws RollbackException {
-    LOGGER.info("featuregroup search rollback");
+    LOGGER.info("featuregroup feature description rollback");
     try {
       setup();
       if(dryrun) {
         traverseElements(dryRunFeaturegroup());
       } else {
-        traverseElements(revertFeaturegroup());
+        traverseElements(updateFeaturegroupsForSearch.migrateFeaturegroup());
       }
     } catch (Exception e) {
       throw new RollbackException("error", e);
@@ -187,7 +192,7 @@ public class UpdateFeaturegroupsForSearch implements MigrateStep {
       connection.setAutoCommit(false);
       allFeaturestoresStmt = connection.prepareStatement(GET_ALL_FEATURESTORES);
       ResultSet allFeaturestoresResultSet = allFeaturestoresStmt.executeQuery();
-    
+      
       while (allFeaturestoresResultSet.next()) {
         allFSFeaturegroupsStmt = getFSFeaturegroupsStmt(allFeaturestoresResultSet);
         ResultSet allFSFeaturegroupsResultSet = allFSFeaturegroupsStmt.executeQuery();
@@ -226,7 +231,7 @@ public class UpdateFeaturegroupsForSearch implements MigrateStep {
       Date createDate =
         formatter.parse(allFSFeaturegroupsResultSet.getString(GET_HIVE_MANAGED_FEATUREGROUPS_S_CREATED));
       String creator = getCreator(allFSFeaturegroupsResultSet);
-      List<String> features = getFeatures(allFSFeaturegroupsResultSet);
+      List<FeaturegroupXAttr.SimpleFeatureDTO> features = getFeatures(allFSFeaturegroupsResultSet);
       FeaturegroupXAttr.FullDTO xattr
         = new FeaturegroupXAttr.FullDTO(featurestoreId, description, createDate, creator, features);
       byte[] val = jaxbMarshal(jaxbContext, xattr).getBytes();
@@ -234,22 +239,22 @@ public class UpdateFeaturegroupsForSearch implements MigrateStep {
         LOGGER.warn("xattr too large - skipping attaching features to featuregroup:{}", featuregroupPath);
         xattr = new FeaturegroupXAttr.FullDTO(featurestoreId, description, createDate, creator);
       }
-    
+      
       byte[] existingVal = dfso.getXAttr(new Path(featuregroupPath), "provenance.featurestore");
       if(existingVal == null) {
         LOGGER.info("featuregroup:{} rollbacked (no value)", featuregroupPath);
       } else {
-        FeaturegroupXAttr.FullDTO existingXAttr = jaxbUnmarshal(jaxbContext, existingVal);
-        if(existingXAttr.equals(xattr)) {
-          LOGGER.info("featuregroup:{} migrated (correct value)", featuregroupPath);
-        } else {
-          LOGGER.info("featuregroup:{} bad value", featuregroupPath);
-        }
+        LOGGER.info("featuregroup:{} old xattr", featuregroupPath);
+        LOGGER.info("{}", updateFeaturegroupsForSearch.jaxbMarshal(updateFeaturegroupsForSearch.getJaxbContext(),
+          updateFeaturegroupsForSearch.jaxbUnmarshal(updateFeaturegroupsForSearch.getJaxbContext(),
+          existingVal)));
+        LOGGER.info("featuregroup:{} migrated xattr", featuregroupPath);
+        LOGGER.info("{}", jaxbMarshal(jaxbContext, xattr));
       }
     };
   }
   
-  public CheckedBiConsumer<ResultSet, ResultSet, Exception> migrateFeaturegroup() {
+  private CheckedBiConsumer<ResultSet, ResultSet, Exception> migrateFeaturegroup() {
     return (ResultSet allFeaturestoresResultSet, ResultSet allFSFeaturegroupsResultSet) -> {
       String projectName = getProjectName(allFeaturestoresResultSet);
       String featuregroupName = allFSFeaturegroupsResultSet.getString(GET_HIVE_MANAGED_FEATUREGROUPS_S_NAME);
@@ -261,13 +266,13 @@ public class UpdateFeaturegroupsForSearch implements MigrateStep {
         return;
       }
       LOGGER.info("featuregroup:{}", featuregroupPath);
-  
+      
       int featurestoreId = allFeaturestoresResultSet.getInt(GET_ALL_FEATURESTORES_S_ID);
       String description = getDescription(allFSFeaturegroupsResultSet);
       Date createDate =
         formatter.parse(allFSFeaturegroupsResultSet.getString(GET_HIVE_MANAGED_FEATUREGROUPS_S_CREATED));
       String creator = getCreator(allFSFeaturegroupsResultSet);
-      List<String> features = getFeatures(allFSFeaturegroupsResultSet);
+      List<FeaturegroupXAttr.SimpleFeatureDTO> features = getFeatures(allFSFeaturegroupsResultSet);
       FeaturegroupXAttr.FullDTO xattr
         = new FeaturegroupXAttr.FullDTO(featurestoreId, description, createDate, creator, features);
       byte[] val = jaxbMarshal(jaxbContext, xattr).getBytes();
@@ -280,25 +285,6 @@ public class UpdateFeaturegroupsForSearch implements MigrateStep {
         XAttrHelper.upsertProvXAttr(dfso, featuregroupPath, "featurestore", val);
       } catch (XAttrException e) {
         throw e;
-      }
-    };
-  }
-  
-  private CheckedBiConsumer<ResultSet, ResultSet, Exception> revertFeaturegroup() {
-    return (ResultSet allFeaturestoresResultSet, ResultSet allFSFeaturegroupsResultSet) -> {
-      String projectName = getProjectName(allFeaturestoresResultSet);
-      String featuregroupName = allFSFeaturegroupsResultSet.getString(GET_HIVE_MANAGED_FEATUREGROUPS_S_NAME);
-      int featuregroupVersion = allFSFeaturegroupsResultSet.getInt(GET_HIVE_MANAGED_FEATUREGROUPS_S_VERSION);
-      String featuregroupPath = getFeaturegroupPath(projectName, featuregroupName, featuregroupVersion);
-      LOGGER.info("featuregroup:{}", featuregroupPath);
-      try {
-        dfso.removeXAttr(new Path(featuregroupPath), "provenance.featurestore");
-      } catch(RemoteException ex) {
-        if(ex.getMessage().startsWith("No matching attributes found for remove operation")) {
-          //ignore
-        } else {
-          throw ex;
-        }
       }
     };
   }
@@ -320,8 +306,8 @@ public class UpdateFeaturegroupsForSearch implements MigrateStep {
     stmt.setString(GET_FG_DESCRIPTION_W_PARAM, "comment");
     return stmt;
   }
-  private PreparedStatement getFGFeaturesStmt(ResultSet allFSFeaturegroupsResultSet) throws SQLException {
-    PreparedStatement stmt = connection.prepareStatement(GET_FG_FEATURES);
+  private PreparedStatement getFGFeaturesStmt(String sql, ResultSet allFSFeaturegroupsResultSet) throws SQLException {
+    PreparedStatement stmt = connection.prepareStatement(sql);
     stmt.setInt(GET_FG_FEATURES_W_TBL_ID, allFSFeaturegroupsResultSet.getInt(GET_HIVE_MANAGED_FEATUREGROUPS_S_TBL_ID));
     return stmt;
   }
@@ -364,14 +350,32 @@ public class UpdateFeaturegroupsForSearch implements MigrateStep {
     }
   }
   
-  private List<String> getFeatures(ResultSet allFSFeaturegroupsResultSet) throws SQLException {
+  private List<FeaturegroupXAttr.SimpleFeatureDTO> getFeatures(ResultSet allFSFeaturegroupsResultSet)
+      throws SQLException {
+    List<FeaturegroupXAttr.SimpleFeatureDTO> features = new LinkedList<>();
+    // regular features
+    features.addAll(getFeatures(GET_FG_FEATURES, allFSFeaturegroupsResultSet));
+    // features used as partition keys
+    features.addAll(getFeatures(GET_FG_PARTITION_FEATURES, allFSFeaturegroupsResultSet));
+    // filter hudi columns
+    return features.stream()
+      .filter(feature -> !HUDI_SPEC_FEATURE_NAMES.contains(feature.getName())).collect(Collectors.toList());
+  }
+
+  private List<FeaturegroupXAttr.SimpleFeatureDTO> getFeatures(String sql, ResultSet allFSFeaturegroupsResultSet)
+      throws SQLException {
     PreparedStatement fgFeaturesStmt = null;
     try {
-      fgFeaturesStmt = getFGFeaturesStmt(allFSFeaturegroupsResultSet);
+      fgFeaturesStmt = getFGFeaturesStmt(sql, allFSFeaturegroupsResultSet);
       ResultSet fgFeaturesResultSet = fgFeaturesStmt.executeQuery();
-      List<String> features = new LinkedList<>();
+      List<FeaturegroupXAttr.SimpleFeatureDTO> features = new LinkedList<>();
+      // regular features
       while (fgFeaturesResultSet.next()) {
-        features.add(fgFeaturesResultSet.getString(GET_FG_FEATURES_S_NAME));
+        features.add(fgFeaturesResultSet.getString(GET_FG_FEATURES_S_COMMENT) != null ?
+          new FeaturegroupXAttr.SimpleFeatureDTO(
+            fgFeaturesResultSet.getString(GET_FG_FEATURES_S_NAME),
+            fgFeaturesResultSet.getString(GET_FG_FEATURES_S_COMMENT)) :
+          new FeaturegroupXAttr.SimpleFeatureDTO(fgFeaturesResultSet.getString(GET_FG_FEATURES_S_NAME)));
       }
       return features;
     } finally {
@@ -398,6 +402,7 @@ public class UpdateFeaturegroupsForSearch implements MigrateStep {
     }
   }
   
+  
   private JAXBContext jaxbContext() throws JAXBException {
     Map<String, Object> properties = new HashMap<>();
     properties.put(MarshallerProperties.JSON_INCLUDE_ROOT, false);
@@ -406,19 +411,22 @@ public class UpdateFeaturegroupsForSearch implements MigrateStep {
       new Class[] {
         ProvCoreDTO.class,
         ProvTypeDTO.class,
-        FeaturegroupXAttr.FullDTO.class
+        FeaturegroupXAttr.FullDTO.class,
+        FeaturegroupXAttr.SimpleFeatureDTO.class
       },
       properties);
     return context;
   }
   
-  public FeaturegroupXAttr.FullDTO jaxbUnmarshal(JAXBContext jaxbContext, byte[] val) throws JAXBException {
+  private io.hops.hopsworks.expat.migrations.projects.search.featurestore.FeaturegroupXAttr.FullDTO jaxbUnmarshal(
+      JAXBContext jaxbContext, byte[] val) throws JAXBException {
     Unmarshaller unmarshaller = jaxbContext.createUnmarshaller();
     StreamSource ss = new StreamSource(new StringReader(new String(val)));
-    return unmarshaller.unmarshal(ss, FeaturegroupXAttr.FullDTO.class).getValue();
+    return unmarshaller.unmarshal(ss,
+      io.hops.hopsworks.expat.migrations.projects.search.featurestore.FeaturegroupXAttr.FullDTO.class).getValue();
   }
   
-  public String jaxbMarshal(JAXBContext jaxbContext, FeaturegroupXAttr.FullDTO xattr) throws JAXBException {
+  private String jaxbMarshal(JAXBContext jaxbContext, FeaturegroupXAttr.FullDTO xattr) throws JAXBException {
     Marshaller marshaller = jaxbContext.createMarshaller();
     StringWriter sw = new StringWriter();
     marshaller.marshal(xattr, sw);
