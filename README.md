@@ -11,7 +11,7 @@ this feature by following [HOPSWORKS-814](https://logicalclocks.atlassian.net/br
 # Adding your migration step
 
 1. You need to define a class that implements the ``MigrateStep`` interface
-2. Set the class in `expat-site-default.xml` and in expat-chef `expat-site.xml.erb`. Be careful to add the 
+2. Set the class in `expat-site-default.xml` and in hopsworks-chef `expat-site.xml.erb`. Be careful to add the 
 ``ShutdownHook`` in your class and in the main method in ``Expat``, if needed.
 3. If you want to run a script from the scripts folder, you need to add it in the pom.xml as well.
 
