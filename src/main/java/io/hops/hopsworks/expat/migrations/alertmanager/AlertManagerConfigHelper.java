@@ -97,7 +97,7 @@ public class AlertManagerConfigHelper {
       throws SQLException, IllegalAccessException, InstantiationException, IOException {
     if (dryrun) {
       AlertManagerConfig alertManagerConfig = read();
-      Receiver receiver = new Receiver("default");
+      Receiver receiver = new Receiver(AlertType.DEFAULT.getReceiverName());
       if (alertType.isGlobal() && alertManagerConfig.getReceivers() != null) {
         Optional<Receiver> optionalReceiver =
             alertManagerConfig.getReceivers().stream().filter(r -> r.getName().equals(alertType.getReceiverName()))
@@ -254,7 +254,7 @@ public class AlertManagerConfigHelper {
       throws SQLException, IOException, IllegalAccessException, InstantiationException {
     String receiverName = alertManagerConfig != null &&
         alertManagerConfig.getRoute() != null && !Strings.isNullOrEmpty(alertManagerConfig.getRoute().getReceiver()) ?
-        alertManagerConfig.getRoute().getReceiver() : "default";
+        alertManagerConfig.getRoute().getReceiver() : AlertType.DEFAULT.getReceiverName();
     ExpatReceiver receiver = this.receiverFacade.findByName(receiverName);
     if (!dryrun && receiver == null) {
       save(new Receiver(receiverName));
