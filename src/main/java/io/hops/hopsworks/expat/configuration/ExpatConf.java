@@ -86,4 +86,7 @@ public class ExpatConf {
   // ------ Hops Configuration ------ //
   private static final String HOPS_PREFIX = "hops.";
   public static final String HOPS_CLIENT_USER = HOPS_PREFIX + "client.user";
+  // ------ Epipe Configuration ------ //
+  public static final String EPIPE_PATH = "epipe.path";
+  public static final String EPIPE_REINDEX = "epipe.reindex";
 }

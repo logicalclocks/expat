@@ -85,6 +85,12 @@
         </client>
     </hops>
 
+    <epipe>
+        <path></path>
+        <!-- indices: projects/featurestore/app_provenance -->
+        <reindex></reindex>
+    </epipe>
+
     <version-06>
         io.hops.hopsworks.expat.migrations.kubernetes.CreateNS
         io.hops.hopsworks.expat.migrations.kubernetes.CreateCertSecrets
@@ -138,5 +144,8 @@
         io.hops.hopsworks.expat.migrations.alertmanager.FixAlertManagerReceiver
         io.hops.hopsworks.expat.migrations.elk.ServicesLogs
     </version-24>
+    <version-25>
+        io.hops.hopsworks.expat.migrations.elk.BaseIndexTemplateMigrate
+    </version-25>
 </expat>
 
