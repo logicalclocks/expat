@@ -75,6 +75,8 @@
     <elastic>
         <user></user>
         <pass></pass>
+        <services-logs-user></services-logs-user>
+        <services-logs-pass></services-logs-pass>
     </elastic>
 
     <hops>
@@ -132,8 +134,9 @@
         io.hops.hopsworks.expat.migrations.kafka.InferenceSchemaV4Migration
         io.hops.hopsworks.expat.migrations.serving.ModelArtifactMigration
     </version-23>
-    <version-30>
+    <version-24>
         io.hops.hopsworks.expat.migrations.alertmanager.FixAlertManagerReceiver
-    </version-30>
+        io.hops.hopsworks.expat.migrations.elk.ServicesLogs
+    </version-24>
 </expat>
 
