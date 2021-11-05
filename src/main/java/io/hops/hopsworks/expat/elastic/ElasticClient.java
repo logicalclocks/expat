@@ -352,4 +352,150 @@ public class ElasticClient {
     }
   }
   
+  public static void createSnapshotRepo(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser,
+                                        String elasticPass, String repoName, String repoLocation)
+    throws IOException, URISyntaxException {
+    CloseableHttpResponse response = null;
+    try {
+      URIBuilder uriBuilder = new URIBuilder()
+        .setPathSegments("_snapshot", repoName);
+      HttpPut request = new HttpPut(uriBuilder.build());
+      request.addHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+      String encodedAuth = Base64.getEncoder().encodeToString((elasticUser + ":" + elasticPass).getBytes());
+      request.addHeader(HttpHeaders.AUTHORIZATION, "Basic " + encodedAuth);
+      String body = "{\"type\": \"fs\", \"settings\": {\"location\": \"" + repoLocation + "\"}}";
+      HttpEntity entity = new ByteArrayEntity(body.getBytes(StandardCharsets.UTF_8));
+      request.setEntity(entity);
+      response = httpClient.execute(elastic, request);
+      JSONObject jsonResponse = new JSONObject(EntityUtils.toString(response.getEntity()));
+      int status = response.getStatusLine().getStatusCode();
+      if (status == 200) {
+        LOGGER.info("Setup snapshot repo:{} with location:{}", repoName, repoLocation);
+      } else {
+        throw new IllegalStateException("Could not setup snapshot repo:" + jsonResponse.getJSONObject("error"));
+      }
+    } finally {
+      if (response != null) {
+        response.close();
+      }
+    }
+  }
+  
+  public static void deleteSnapshotRepo(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser,
+                                        String elasticPass, String repoName)
+    throws IOException, URISyntaxException {
+    CloseableHttpResponse response = null;
+    try {
+      URIBuilder uriBuilder = new URIBuilder()
+        .setPathSegments("_snapshot", repoName);
+      HttpDelete request = new HttpDelete(uriBuilder.build());
+      request.addHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+      String encodedAuth = Base64.getEncoder().encodeToString((elasticUser + ":" + elasticPass).getBytes());
+      request.addHeader(HttpHeaders.AUTHORIZATION, "Basic " + encodedAuth);
+      response = httpClient.execute(elastic, request);
+      JSONObject jsonResponse = new JSONObject(EntityUtils.toString(response.getEntity()));
+      int status = response.getStatusLine().getStatusCode();
+      if (status == 200) {
+        LOGGER.info("Delete snapshot repo:{}", repoName);
+      } else {
+        throw new IllegalStateException("Could not delete snapshot:" + jsonResponse.getJSONObject("error"));
+      }
+    } finally {
+      if (response != null) {
+        response.close();
+      }
+    }
+  }
+  
+  public static void takeSnapshot(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser,
+                                  String elasticPass, String repoName, String snapshotName, boolean ignoreUnavailable,
+                                  String[] indices)
+    throws URISyntaxException, IOException {
+    CloseableHttpResponse response = null;
+    try {
+      URIBuilder uriBuilder = new URIBuilder();
+      uriBuilder
+        .setPathSegments("_snapshot", repoName, snapshotName)
+        .setParameter("wait_for_completion", "true");
+      HttpPut request = new HttpPut(uriBuilder.build());
+      request.addHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+      String encodedAuth = Base64.getEncoder().encodeToString((elasticUser + ":" + elasticPass).getBytes());
+      request.addHeader(HttpHeaders.AUTHORIZATION, "Basic " + encodedAuth);
+      String body = "{\"indices\":\"" + String.join(",", indices) + "\", " +
+        "\"include_global_state\":false, \"ignore_unavailable\":" + ignoreUnavailable + "}";
+      HttpEntity entity = new ByteArrayEntity(body.getBytes(StandardCharsets.UTF_8));
+      request.setEntity(entity);
+      response = httpClient.execute(elastic, request);
+      JSONObject jsonResponse = new JSONObject(EntityUtils.toString(response.getEntity()));
+      int status = response.getStatusLine().getStatusCode();
+      if (status == 200) {
+        LOGGER.info("Take snapshot:{} in repo:{}", snapshotName, repoName);
+      } else {
+        throw new IllegalStateException("Could not take snapshot:" + jsonResponse.getJSONObject("error"));
+      }
+    } finally {
+      if (response != null) {
+        response.close();
+      }
+    }
+  }
+  
+  public static void restoreSnapshot(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser,
+                                     String elasticPass, String repoName, String snapshotName, String[] indices,
+                                     boolean ignoreUnavailable)
+    throws URISyntaxException, IOException {
+    CloseableHttpResponse response = null;
+    try {
+      URIBuilder uriBuilder = new URIBuilder();
+      uriBuilder
+        .setPathSegments("_snapshot", repoName, snapshotName, "_restore") ;
+      HttpPost request = new HttpPost(uriBuilder.build());
+      request.addHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+      String encodedAuth = Base64.getEncoder().encodeToString((elasticUser + ":" + elasticPass).getBytes());
+      request.addHeader(HttpHeaders.AUTHORIZATION, "Basic " + encodedAuth);
+      String body = "{\"indices\":\"" + String.join(",", indices) + "\", " +
+        "\"include_global_state\":false, \"ignore_unavailable\":" + ignoreUnavailable + "}";
+      HttpEntity entity = new ByteArrayEntity(body.getBytes(StandardCharsets.UTF_8));
+      request.setEntity(entity);
+      response = httpClient.execute(elastic, request);
+      JSONObject jsonResponse = new JSONObject(EntityUtils.toString(response.getEntity()));
+      int status = response.getStatusLine().getStatusCode();
+      if (status == 200) {
+        LOGGER.info("Restore snapshot:{} from repo:{}", snapshotName, repoName);
+      } else {
+        throw new IllegalStateException("Could not restore snapshot:" + jsonResponse.getJSONObject("error"));
+      }
+    } finally {
+      if (response != null) {
+        response.close();
+      }
+    }
+  }
+  
+  public static void deleteSnapshot(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser,
+                                    String elasticPass, String repoName, String snapshotName)
+    throws URISyntaxException, IOException {
+    CloseableHttpResponse response = null;
+    try {
+      URIBuilder uriBuilder = new URIBuilder();
+      uriBuilder
+        .setPathSegments("_snapshot", repoName, snapshotName) ;
+      HttpDelete request = new HttpDelete(uriBuilder.build());
+      request.addHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+      String encodedAuth = Base64.getEncoder().encodeToString((elasticUser + ":" + elasticPass).getBytes());
+      request.addHeader(HttpHeaders.AUTHORIZATION, "Basic " + encodedAuth);
+      response = httpClient.execute(elastic, request);
+      JSONObject jsonResponse = new JSONObject(EntityUtils.toString(response.getEntity()));
+      int status = response.getStatusLine().getStatusCode();
+      if (status == 200) {
+        LOGGER.info("Delete snapshot:{} from repo:{}", snapshotName, repoName);
+      } else {
+        throw new IllegalStateException("Could not delete snapshot:" + jsonResponse.getJSONObject("error"));
+      }
+    } finally {
+      if (response != null) {
+        response.close();
+      }
+    }
+  }
 }

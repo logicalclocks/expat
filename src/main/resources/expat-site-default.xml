@@ -77,6 +77,16 @@
         <pass></pass>
         <services-logs-user></services-logs-user>
         <services-logs-pass></services-logs-pass>
+        <snapshot>
+            <repo>
+                <name></name>
+                <location></location>
+            </repo>
+            <name></name>
+            <!-- repeated section for multiple indices -->
+            <indices></indices>
+            <ignoreUnavailable></ignoreUnavailable>
+        </snapshot>
     </elastic>
 
     <hops>
