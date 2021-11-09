@@ -296,9 +296,9 @@ public class UpdateFeaturegroupsForType implements MigrateStep {
     properties.put(MarshallerProperties.MEDIA_TYPE, MediaType.APPLICATION_JSON);
     JAXBContext context = JAXBContextFactory.createContext(
             new Class[] {
-                    ProvCoreDTO.class,
-                    ProvTypeDTO.class,
-                    FeaturegroupXAttr.FullDTO.class
+                ProvCoreDTO.class,
+                ProvTypeDTO.class,
+                FeaturegroupXAttr.FullDTO.class
             },
             properties);
     return context;
