@@ -104,6 +104,8 @@ public class FeaturegroupXAttr {
     private Long createDate;
     @XmlElement(nillable = true, name = FeaturestoreXAttrsConstants.CREATOR)
     private String creator;
+    @XmlElement(nillable = true, name = FeaturestoreXAttrsConstants.FG_TYPE)
+    private FGType fgType;
     
     public FullDTO() {
       super();
@@ -144,6 +146,14 @@ public class FeaturegroupXAttr {
     public void setCreator(String creator) {
       this.creator = creator;
     }
+
+    public FGType getFgType() {
+      return fgType;
+    }
+
+    public void setFgType(FGType fgType) {
+      this.fgType = fgType;
+    }
     
     @Override
     public String toString() {
@@ -151,6 +161,7 @@ public class FeaturegroupXAttr {
         "description='" + description + '\'' +
         ", createDate=" + createDate +
         ", creator='" + creator + '\'' +
+        ", fgType='" + fgType + '\'' +
         '}';
     }
   
@@ -224,5 +235,10 @@ public class FeaturegroupXAttr {
         Objects.equals(name, that.name) &&
         Objects.equals(version, that.version);
     }
+  }
+
+  public enum FGType {
+    ON_DEMAND,
+    CACHED
   }
 }
