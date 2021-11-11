@@ -235,6 +235,7 @@ public class UpdateFeaturegroupsForType implements MigrateStep {
       }
       try{
         XAttrHelper.upsertProvXAttr(dfso, featuregroupPath, "featurestore", val);
+        LOGGER.info("featuregroup:{} successfully migrated to having fg type", featuregroupPath);
       } catch (XAttrException e) {
         throw e;
       }
@@ -255,6 +256,7 @@ public class UpdateFeaturegroupsForType implements MigrateStep {
       byte[] val = jaxbMarshal(jaxbContext, xattr).getBytes();
       try{
         XAttrHelper.upsertProvXAttr(dfso, featuregroupPath, "featurestore", val);
+        LOGGER.info("featuregroup:{} successfully rolled back from having fg type", featuregroupPath);
       } catch (XAttrException e) {
         throw e;
       }
