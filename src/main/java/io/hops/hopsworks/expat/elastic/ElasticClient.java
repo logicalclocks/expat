@@ -440,7 +440,7 @@ public class ElasticClient {
   
   public static void takeSnapshot(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser,
                                   String elasticPass, String repoName, String snapshotName, boolean ignoreUnavailable,
-                                  String[] indices)
+                                  String... indices)
     throws URISyntaxException, IOException {
     CloseableHttpResponse response = null;
     try {
