@@ -147,61 +147,6 @@ public class FeaturegroupXAttrV2 {
     }
   }
   
-  /**
-   * simplified version of FullDTO that is part of the
-   * @link io.hops.hopsworks.common.featurestore.xattr.dto.TrainingDatasetXAttrDTO
-   */
-  @XmlRootElement
-  public static class SimplifiedDTO extends Base {
-    @XmlElement(nillable = false, name = FeaturestoreXAttrsConstants.NAME)
-    private String name;
-    @XmlElement(nillable = false, name = FeaturestoreXAttrsConstants.VERSION)
-    private Integer version;
-    @XmlElement(nillable = false, name = FeaturestoreXAttrsConstants.FG_FEATURES)
-    private List<String> features = new LinkedList<>();
-    
-    public SimplifiedDTO() {
-      super();
-    }
-    
-    public SimplifiedDTO(Integer featurestoreId, String name, Integer version) {
-      super(featurestoreId);
-      this.name = name;
-      this.version = version;
-    }
-    public String getName() {
-      return name;
-    }
-    
-    public void setName(String name) {
-      this.name = name;
-    }
-    
-    public Integer getVersion() {
-      return version;
-    }
-    
-    public void setVersion(Integer version) {
-      this.version = version;
-    }
-    
-    public List<String> getFeatures() {
-      return features;
-    }
-    
-    public void setFeatures(List<String> features) {
-      this.features = features;
-    }
-    
-    public void addFeature(String feature) {
-      features.add(feature);
-    }
-    
-    public void addFeatures(List<String> features) {
-      this.features.addAll(features);
-    }
-  }
-  
   @XmlRootElement
   public static class SimpleFeatureDTO {
     private String name;

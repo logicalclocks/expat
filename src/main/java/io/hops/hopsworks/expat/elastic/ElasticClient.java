@@ -165,23 +165,23 @@ public class ElasticClient {
   }
   
   private static String getReindexBody(String fromIndex, String toIndex, Optional<String> script) {
-    JsonObject bodyJ = new JsonObject();
-    JsonObject sourceJ = new JsonObject();
-    bodyJ.add("source", sourceJ);
-    sourceJ.addProperty("index", fromIndex);
+    JsonObject bodyJson = new JsonObject();
+    JsonObject sourceJson = new JsonObject();
+    bodyJson.add("source", sourceJson);
+    sourceJson.addProperty("index", fromIndex);
     
-    JsonObject destJ = new JsonObject();
-    bodyJ.add("dest", destJ);
-    destJ.addProperty("index", toIndex);
+    JsonObject destJson = new JsonObject();
+    bodyJson.add("dest", destJson);
+    destJson.addProperty("index", toIndex);
     
     if(script.isPresent()) {
-      JsonObject scriptJ = new JsonObject();
-      bodyJ.add("script", scriptJ);
-      scriptJ.addProperty("lang", "painless");
-      scriptJ.addProperty("source", script.get());
+      JsonObject scriptJson = new JsonObject();
+      bodyJson.add("script", scriptJson);
+      scriptJson.addProperty("lang", "painless");
+      scriptJson.addProperty("source", script.get());
     }
     
-    return new GsonBuilder().create().toJson(bodyJ);
+    return new GsonBuilder().create().toJson(bodyJson);
   }
   
   public static void createTemplate(CloseableHttpClient httpClient, HttpHost elastic,

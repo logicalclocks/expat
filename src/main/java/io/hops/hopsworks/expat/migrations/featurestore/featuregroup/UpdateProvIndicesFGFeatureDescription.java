@@ -1,18 +1,19 @@
-/* This file is part of Expat
-* Copyright (C) 2021, Logical Clocks AB. All rights reserved
-*
-* Expat is free software: you can redistribute it and/or modify it under the terms of
-* the GNU Affero General Public License as published by the Free Software Foundation,
-* either version 3 of the License, or (at your option) any later version.
-*
-* Expat is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-* PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
-*
-* You should have received a copy of the GNU Affero General Public License along with
-* this program. If not, see <https://www.gnu.org/licenses/>.
-*
-*/
+/**
+ * This file is part of Expat
+ * Copyright (C) 2021, Logical Clocks AB. All rights reserved
+ *
+ * Expat is free software: you can redistribute it and/or modify it under the terms of
+ * the GNU Affero General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * Expat is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+ * PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License along with
+ * this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
 package io.hops.hopsworks.expat.migrations.featurestore.featuregroup;
 
 import com.lambdista.util.Try;
@@ -47,8 +48,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.function.Function;
 
-public class UpdateProvIndicesFGDescription implements MigrateStep {
-  private final static Logger LOGGER = LogManager.getLogger(UpdateProvIndicesFGDescription.class);
+public class UpdateProvIndicesFGFeatureDescription implements MigrateStep {
+  private final static Logger LOGGER = LogManager.getLogger(UpdateProvIndicesFGFeatureDescription.class);
   
   /************** ELASTIC PROVENANCE ************/
   private final static String GET_ALL_PROJECTS = "SELECT partition_id, inode_pid, inode_name " +
