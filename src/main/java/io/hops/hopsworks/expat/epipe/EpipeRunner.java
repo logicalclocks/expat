@@ -31,44 +31,37 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
 public class EpipeRunner {
   private static final Logger LOGGER = LogManager.getLogger(EpipeRunner.class);
   
-  private static final String PROJECTS_CONFIG_LINE = "index = projects";
-  private static final String FEATURESTORE_CONFIG_LINE = "featurestore_index = featurestore";
-  private static final String APP_PROVENANCE_CONFIG_LINE = "app_provenance_index = appprovenance";
+  private static final String REINDEX_PREFIX = "reindex_of = ";
+  private static final String REINDEX_ALL = REINDEX_PREFIX + "all";
+  private static final String PROJECTS_INDEX = "projects";
+  private static final String FEATURESTORE_INDEX = "featurestore";
+  private static final String REINDEX_PROJECTS = REINDEX_PREFIX + PROJECTS_INDEX;
+  private static final String REINDEX_FEATURESTORE = REINDEX_PREFIX + FEATURESTORE_INDEX;
   
-  private static void fixReindexOf(String elasticIndex, List<String> toReindex,
-                                   List<String> configContent, int configContentIdx, String configLine) {
-    if (configContent.get(configContentIdx).startsWith(configLine)) {
-      if(toReindex.contains(elasticIndex)) {
-        toReindex.remove(elasticIndex);
-      } else {
-        //comment out
-        configContent.set(configContentIdx, "#" + configLine);
-      }
-    } else if (configContent.get(configContentIdx).startsWith("#" + configLine)) {
-      if(toReindex.contains(elasticIndex)) {
-        toReindex.remove(elasticIndex);
-        //uncomment
-        configContent.set(configContentIdx, configLine);
-      }
-    }
-  }
   
-  private static void updateReindexConfig(String reindexConfigPath, List<String> toReindex) throws IOException {
+  private static void updateReindexConfig(String reindexConfigPath,
+                                          boolean reindexProjects,
+                                          boolean reindexFeaturestore)
+    throws IOException {
     Path configFile = Paths.get(reindexConfigPath);
     List<String> configContent = new ArrayList<>(Files.readAllLines(configFile, StandardCharsets.UTF_8));
   
-    List<String> toReindexAux = new LinkedList<>(toReindex);
     for (int i = 0; i < configContent.size(); i++) {
-      fixReindexOf("projects", toReindexAux, configContent, i, PROJECTS_CONFIG_LINE);
-      fixReindexOf("featurestore", toReindex, configContent, i, FEATURESTORE_CONFIG_LINE);
-      fixReindexOf("app_provenance", toReindex, configContent, i, APP_PROVENANCE_CONFIG_LINE);
+      if (configFile.startsWith(REINDEX_PREFIX)) {
+        if(reindexProjects && reindexFeaturestore) {
+          configContent.set(i, REINDEX_ALL);
+        } else if(reindexProjects) {
+          configContent.set(i, REINDEX_PROJECTS);
+        } else {
+          configContent.set(i, REINDEX_FEATURESTORE);
+        }
+      }
     }
   
     Files.write(configFile, configContent, StandardCharsets.UTF_8);
@@ -87,21 +80,27 @@ public class EpipeRunner {
   }
   
   public static void reindex(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser, String elasticPass,
-                             String epipePath, List<String> toReindex)
+                             String epipePath, boolean reindexProjects, boolean reindexFeaturestore)
     throws IOException, InterruptedException {
     LOGGER.info("delete indices");
-    for(String index : toReindex) {
-      ElasticClient.deleteIndex(httpClient, elastic, elasticUser, elasticPass, index);
+    if(reindexProjects) {
+      ElasticClient.deleteIndex(httpClient, elastic, elasticUser, elasticPass, PROJECTS_INDEX);
+    }
+    if(reindexFeaturestore) {
+      ElasticClient.deleteIndex(httpClient, elastic, elasticUser, elasticPass, FEATURESTORE_INDEX);
     }
   
     LOGGER.info("create indices");
-    for(String index : toReindex) {
-      ElasticClient.createIndex(httpClient, elastic, elasticUser, elasticPass, index);
+    if(reindexProjects) {
+      ElasticClient.createIndex(httpClient, elastic, elasticUser, elasticPass, PROJECTS_INDEX);
+    }
+    if(reindexFeaturestore) {
+      ElasticClient.createIndex(httpClient, elastic, elasticUser, elasticPass, FEATURESTORE_INDEX);
     }
   
     LOGGER.info("reindex config");
     String reindexConfigPath = epipePath + "/conf/config-reindex.ini";
-    updateReindexConfig(reindexConfigPath, toReindex);
+    updateReindexConfig(reindexConfigPath, true, true);
   
     LOGGER.info("reindex");
     ProcessBuilder epipeReindexB = new ProcessBuilder()
@@ -130,10 +129,10 @@ public class EpipeRunner {
   }
   
   public static void run(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser, String elasticPass,
-                         String epipePath, List<String> toReindex)
+                         String epipePath, boolean reindexProjects, boolean reindexFeaturestore)
     throws IOException, InterruptedException {
     stopEpipe();
-    reindex(httpClient, elastic, elasticUser, elasticPass, epipePath, toReindex);
+    reindex(httpClient, elastic, elasticUser, elasticPass, epipePath, reindexProjects, reindexFeaturestore);
     restartEpipe();
   }
 }

@@ -22,7 +22,6 @@ import io.hops.hopsworks.expat.elastic.ElasticClient;
 import io.hops.hopsworks.expat.migrations.MigrateStep;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
-import io.hops.hopsworks.expat.migrations.reindex.EpipeReindex;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.http.HttpHost;
@@ -41,7 +40,7 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 
 public class BaseIndexTemplateMigrate implements MigrateStep  {
-  private static final Logger LOGGER = LogManager.getLogger(EpipeReindex.class);
+  private static final Logger LOGGER = LogManager.getLogger(BaseIndexTemplateMigrate.class);
   
   private HttpHost elastic;
   private String elasticUser;
