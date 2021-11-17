@@ -41,7 +41,7 @@ public class EpipeRunner {
   private static final String REINDEX_ALL = REINDEX_PREFIX + "all";
   private static final String PROJECTS_INDEX = "projects";
   private static final String FEATURESTORE_INDEX = "featurestore";
-  private static final String REINDEX_PROJECTS = REINDEX_PREFIX + PROJECTS_INDEX;
+  private static final String REINDEX_PROJECTS = REINDEX_PREFIX + "project";
   private static final String REINDEX_FEATURESTORE = REINDEX_PREFIX + FEATURESTORE_INDEX;
   
   

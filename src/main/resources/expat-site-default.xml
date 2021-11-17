@@ -97,8 +97,6 @@
 
     <epipe>
         <path></path>
-        <!-- indices: projects/featurestore/app_provenance -->
-        <reindex></reindex>
     </epipe>
 
     <version-06>
