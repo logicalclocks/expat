@@ -150,7 +150,6 @@ public class UpdateFeatureGroupFeatureDescription implements MigrateStep {
   private String elasticPass;
   private CloseableHttpClient httpClient;
   private String epipeLocation;
-  private List<String> toReindex = new LinkedList<>();
   
   private void setup()
     throws ConfigurationException, SQLException, JAXBException, KeyStoreException, NoSuchAlgorithmException,
@@ -189,9 +188,6 @@ public class UpdateFeatureGroupFeatureDescription implements MigrateStep {
       throw new ConfigurationException(ExpatConf.EPIPE_PATH + " cannot be null");
     }
 
-    toReindex.add("featurestore");
-    toReindex.add("projects");
-    
     httpClient = HttpClients
       .custom()
       .setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(
@@ -221,7 +217,7 @@ public class UpdateFeatureGroupFeatureDescription implements MigrateStep {
       } else {
         EpipeRunner.stopEpipe();
         traverseElements(migrateCachedFG(), migrateOnDemandFG());
-        EpipeRunner.reindex(httpClient, elastic, elasticUser, elasticPass, epipeLocation, toReindex);
+        EpipeRunner.reindex(httpClient, elastic, elasticUser, elasticPass, epipeLocation, true, true);
         EpipeRunner.restartEpipe();
       }
       connection.setAutoCommit(true);
@@ -248,7 +244,7 @@ public class UpdateFeatureGroupFeatureDescription implements MigrateStep {
         EpipeRunner.stopEpipe();
         traverseElements(rollbackCachedFG(), rollbackOnDemandFG());
         deleteCachedFeatures();
-        EpipeRunner.reindex(httpClient, elastic, elasticUser, elasticPass, epipeLocation, toReindex);
+        EpipeRunner.reindex(httpClient, elastic, elasticUser, elasticPass, epipeLocation, true, true);
         EpipeRunner.restartEpipe();
       }
       connection.setAutoCommit(true);
