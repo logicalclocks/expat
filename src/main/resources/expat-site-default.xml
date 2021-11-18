@@ -77,6 +77,16 @@
         <pass></pass>
         <services-logs-user></services-logs-user>
         <services-logs-pass></services-logs-pass>
+        <snapshot>
+            <repo>
+                <name></name>
+                <location></location>
+            </repo>
+            <name></name>
+            <!-- repeated section for multiple indices -->
+            <indices></indices>
+            <ignoreUnavailable></ignoreUnavailable>
+        </snapshot>
     </elastic>
 
     <hops>
@@ -84,6 +94,10 @@
             <user></user>
         </client>
     </hops>
+
+    <epipe>
+        <path></path>
+    </epipe>
 
     <version-06>
         io.hops.hopsworks.expat.migrations.kubernetes.CreateNS
@@ -140,6 +154,13 @@
     </version-24>
     <version-25>
         io.hops.hopsworks.expat.migrations.projects.search.featurestore.UpdateFeaturegroupsForType
+        <!-- the steps should be run in order and each rely on the previous one -->
+        io.hops.hopsworks.expat.migrations.elk.BaseIndexTemplateMigrate
+        io.hops.hopsworks.expat.migrations.elk.snapshot.CreateSnapshotRepo
+        io.hops.hopsworks.expat.migrations.elk.snapshot.SnapshotProvenanceIndices
+        io.hops.hopsworks.expat.migrations.featurestore.featuregroup.UpdateProvIndicesFGFeatureDescription
+        io.hops.hopsworks.expat.migrations.featurestore.featuregroup.UpdateFeatureGroupFeatureDescription
+        <!-- -->
     </version-25>
 </expat>
 

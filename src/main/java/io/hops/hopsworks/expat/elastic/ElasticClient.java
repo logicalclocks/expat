@@ -38,42 +38,44 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Optional;
 
 public class ElasticClient {
   private final static Logger LOGGER = LogManager.getLogger(ElasticClient.class);
   
   public static void deleteProvenanceProjectIndex(CloseableHttpClient httpClient, HttpHost elastic, Long projectIId,
-    String elasticUser, String elasticPass) throws IOException {
+                                                  String elasticUser, String elasticPass) throws IOException {
     deleteIndex(httpClient, elastic, elasticUser, elasticPass, projectIId + "__file_prov");
   }
   
   public static void deleteAppProvenanceIndex(CloseableHttpClient httpClient, HttpHost elastic,
-    String elasticUser, String elasticPass) throws IOException {
+                                              String elasticUser, String elasticPass) throws IOException {
     deleteIndex(httpClient, elastic, elasticUser, elasticPass, "app_prov");
   }
   
   public static void deleteTemplate(CloseableHttpClient httpClient, HttpHost elastic,
-                                    String elasticUser, String elasticPass, String index) throws IOException {
+                                    String elasticUser, String elasticPass, String name) throws IOException {
     CloseableHttpResponse response = null;
     try {
-      HttpDelete request = new HttpDelete("_template/" + index);
+      HttpDelete request = new HttpDelete("_template/" + name);
       String encodedAuth = Base64.getEncoder().encodeToString((elasticUser + ":" + elasticPass).getBytes());
       request.addHeader(HttpHeaders.AUTHORIZATION, "Basic " + encodedAuth);
-      LOGGER.info("Deleting index template:{}", index);
+      LOGGER.info("Deleting index template:{}", name);
       response = httpClient.execute(elastic, request);
       JSONObject jsonResponse = new JSONObject(EntityUtils.toString(response.getEntity()));
       int status = response.getStatusLine().getStatusCode();
       if (status == 200) {
-        LOGGER.info("Deleted index template:{}", index);
+        LOGGER.info("Deleted index template:{}", name);
       } else if (status == 404) {
-        LOGGER.info("Index template:{} already deleted", index);
+        LOGGER.info("Index template:{} already deleted", name);
       } else {
         LOGGER.info(jsonResponse);
         if (!jsonResponse.getJSONObject("error").get("reason").toString().startsWith("no such index template")) {
-          throw new IllegalStateException("Could not delete index template:" + index);
+          throw new IllegalStateException("Could not delete index template:" + name);
         }
-        LOGGER.info("Skipping index template:{} - already deleted", index);
+        LOGGER.info("Skipping index template:{} - already deleted", name);
       }
     } finally {
       if (response != null) {
@@ -83,7 +85,7 @@ public class ElasticClient {
   }
   
   public static void deleteIndex(CloseableHttpClient httpClient, HttpHost elastic,
-    String elasticUser, String elasticPass, String index) throws IOException {
+                                 String elasticUser, String elasticPass, String index) throws IOException {
     CloseableHttpResponse response = null;
     try {
       HttpDelete request = new HttpDelete(index);
@@ -109,28 +111,50 @@ public class ElasticClient {
     }
   }
   
-  public static void reindex(CloseableHttpClient httpClient, HttpHost elastic,
-    String elasticUser, String elasticPass, String fromIndex, String toIndex) throws IOException {
+  public static void reindex(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser, String elasticPass,
+                             String fromIndex, String toIndex)
+      throws IOException, URISyntaxException {
+    reindex(httpClient, elastic, elasticUser, elasticPass, fromIndex, toIndex, Optional.empty());
+  }
+  
+  public static void reindex(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser, String elasticPass,
+                            String fromIndex, String toIndex, String script)
+      throws IOException, URISyntaxException {
+    reindex(httpClient, elastic, elasticUser, elasticPass, fromIndex, toIndex, Optional.of(script));
+  }
+  
+  public static void reindex(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser, String elasticPass,
+                             String fromIndex, String toIndex, Optional<String> script)
+    throws IOException, URISyntaxException {
     CloseableHttpResponse response = null;
     try {
-      HttpPost request = new HttpPost("_reindex");
+      URIBuilder uriBuilder = new URIBuilder();
+      uriBuilder
+        .setPathSegments("_reindex")
+        .setParameter("wait_for_completion", "true")
+        .setParameter("refresh", "true");
+      HttpPost request = new HttpPost(uriBuilder.build());
       request.addHeader(HttpHeaders.CONTENT_TYPE, "application/json");
       String encodedAuth = Base64.getEncoder().encodeToString((elasticUser + ":" + elasticPass).getBytes());
       request.addHeader(HttpHeaders.AUTHORIZATION, "Basic " + encodedAuth);
-      HttpEntity entity = new ByteArrayEntity(getReindexBody(fromIndex, toIndex).getBytes("UTF-8"));
+      String requestBody = getReindexBody(fromIndex, toIndex, script);
+      HttpEntity entity = new ByteArrayEntity(requestBody.getBytes(StandardCharsets.UTF_8));
       request.setEntity(entity);
+      
       LOGGER.info("Reindexing from:{} to:{}", fromIndex, toIndex);
       response = httpClient.execute(elastic, request);
       JSONObject jsonResponse = new JSONObject(EntityUtils.toString(response.getEntity()));
+      LOGGER.info("Response:{}", jsonResponse);
       int status = response.getStatusLine().getStatusCode();
       if (status == 200) {
-        LOGGER.info("Reindexed from:{} to:{}", fromIndex, toIndex);
+        if(jsonResponse.getJSONArray("failures").length() != 0) {
+          throw new IllegalStateException("failed to reindex:" + jsonResponse.getJSONArray("failures"));
+        }
       } else {
-        if (!jsonResponse.getJSONObject("error").get("reason").toString().startsWith("no such index")) {
+        if (jsonResponse.getJSONObject("error").get("reason").toString().startsWith("no such index")) {
           throw new IllegalStateException("Could not reindex - indices do not exist");
         } else {
-          throw new IllegalStateException("Could not reindex - unknown elastic error:"
-            + jsonResponse.getJSONObject("error").get("reason"));
+          throw new IllegalStateException("Could not reindex:" + jsonResponse.getJSONObject("error").get("reason"));
         }
       }
     } finally {
@@ -140,36 +164,45 @@ public class ElasticClient {
     }
   }
   
-  private static String getReindexBody(String fromIndex, String toIndex) {
-    JsonObject body = new JsonObject();
-    JsonObject source = new JsonObject();
-    JsonObject dest = new JsonObject();
-    body.add("source", source);
-    body.add("dest", dest);
-    source.addProperty("index", fromIndex);
-    dest.addProperty("index", toIndex);
-    return new GsonBuilder().create().toJson(body);
+  private static String getReindexBody(String fromIndex, String toIndex, Optional<String> script) {
+    JsonObject bodyJson = new JsonObject();
+    JsonObject sourceJson = new JsonObject();
+    bodyJson.add("source", sourceJson);
+    sourceJson.addProperty("index", fromIndex);
+    
+    JsonObject destJson = new JsonObject();
+    bodyJson.add("dest", destJson);
+    destJson.addProperty("index", toIndex);
+    
+    if(script.isPresent()) {
+      JsonObject scriptJson = new JsonObject();
+      bodyJson.add("script", scriptJson);
+      scriptJson.addProperty("lang", "painless");
+      scriptJson.addProperty("source", script.get());
+    }
+    
+    return new GsonBuilder().create().toJson(bodyJson);
   }
   
   public static void createTemplate(CloseableHttpClient httpClient, HttpHost elastic,
                                     String elasticUser, String elasticPass,
-                                    String index, String mapping, String indexPattern)
+                                    String name, String mapping, String indexPattern)
     throws IOException {
     CloseableHttpResponse response = null;
     try {
-      HttpPut request = new HttpPut("_template/" + index);
+      HttpPut request = new HttpPut("_template/" + name);
       request.addHeader(HttpHeaders.CONTENT_TYPE, "application/json");
       String encodedAuth = Base64.getEncoder().encodeToString((elasticUser + ":" + elasticPass).getBytes());
       request.addHeader(HttpHeaders.AUTHORIZATION, "Basic " + encodedAuth);
       String body = "{\"index_patterns\": [\"" + indexPattern + "\"]," + mapping + "}";
-      HttpEntity entity = new ByteArrayEntity(body.getBytes("UTF-8"));
+      HttpEntity entity = new ByteArrayEntity(body.getBytes(StandardCharsets.UTF_8));
       request.setEntity(entity);
-      LOGGER.info("Creating index template:{}", index);
+      LOGGER.info("Creating index template:{}", name);
       response = httpClient.execute(elastic, request);
       JSONObject jsonResponse = new JSONObject(EntityUtils.toString(response.getEntity()));
       int status = response.getStatusLine().getStatusCode();
       if (status == 200) {
-        LOGGER.info("Created index template:{}", index);
+        LOGGER.info("Created index template:{}", name);
       } else {
         throw new IllegalStateException("Could not create index template - unknown elastic error:"
           + jsonResponse.getJSONObject("error").get("reason"));
@@ -180,16 +213,26 @@ public class ElasticClient {
       }
     }
   }
+  
   public static void createIndex(CloseableHttpClient httpClient, HttpHost elastic,
-    String elasticUser, String elasticPass, String index, String mapping) throws IOException {
+                                 String elasticUser, String elasticPass, String index)
+      throws IOException {
+    createIndex(httpClient, elastic, elasticUser, elasticPass, index, Optional.empty());
+  }
+
+  public static void createIndex(CloseableHttpClient httpClient, HttpHost elastic,
+                                 String elasticUser, String elasticPass, String index, Optional<String> mapping)
+      throws IOException {
     CloseableHttpResponse response = null;
     try {
       HttpPut request = new HttpPut(index);
       request.addHeader(HttpHeaders.CONTENT_TYPE, "application/json");
       String encodedAuth = Base64.getEncoder().encodeToString((elasticUser + ":" + elasticPass).getBytes());
       request.addHeader(HttpHeaders.AUTHORIZATION, "Basic " + encodedAuth);
-      HttpEntity entity = new ByteArrayEntity(mapping.getBytes("UTF-8"));
-      request.setEntity(entity);
+      if(mapping.isPresent()) {
+        HttpEntity entity = new ByteArrayEntity(mapping.get().getBytes(StandardCharsets.UTF_8));
+        request.setEntity(entity);
+      }
       LOGGER.info("Creating index:{}", index);
       response = httpClient.execute(elastic, request);
       JSONObject jsonResponse = new JSONObject(EntityUtils.toString(response.getEntity()));
@@ -340,4 +383,150 @@ public class ElasticClient {
     }
   }
   
+  public static void createSnapshotRepo(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser,
+                                        String elasticPass, String repoName, String repoLocation)
+    throws IOException, URISyntaxException {
+    CloseableHttpResponse response = null;
+    try {
+      URIBuilder uriBuilder = new URIBuilder()
+        .setPathSegments("_snapshot", repoName);
+      HttpPut request = new HttpPut(uriBuilder.build());
+      request.addHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+      String encodedAuth = Base64.getEncoder().encodeToString((elasticUser + ":" + elasticPass).getBytes());
+      request.addHeader(HttpHeaders.AUTHORIZATION, "Basic " + encodedAuth);
+      String body = "{\"type\": \"fs\", \"settings\": {\"location\": \"" + repoLocation + "\"}}";
+      HttpEntity entity = new ByteArrayEntity(body.getBytes(StandardCharsets.UTF_8));
+      request.setEntity(entity);
+      response = httpClient.execute(elastic, request);
+      JSONObject jsonResponse = new JSONObject(EntityUtils.toString(response.getEntity()));
+      int status = response.getStatusLine().getStatusCode();
+      if (status == 200) {
+        LOGGER.info("Setup snapshot repo:{} with location:{}", repoName, repoLocation);
+      } else {
+        throw new IllegalStateException("Could not setup snapshot repo:" + jsonResponse.getJSONObject("error"));
+      }
+    } finally {
+      if (response != null) {
+        response.close();
+      }
+    }
+  }
+  
+  public static void deleteSnapshotRepo(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser,
+                                        String elasticPass, String repoName)
+    throws IOException, URISyntaxException {
+    CloseableHttpResponse response = null;
+    try {
+      URIBuilder uriBuilder = new URIBuilder()
+        .setPathSegments("_snapshot", repoName);
+      HttpDelete request = new HttpDelete(uriBuilder.build());
+      request.addHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+      String encodedAuth = Base64.getEncoder().encodeToString((elasticUser + ":" + elasticPass).getBytes());
+      request.addHeader(HttpHeaders.AUTHORIZATION, "Basic " + encodedAuth);
+      response = httpClient.execute(elastic, request);
+      JSONObject jsonResponse = new JSONObject(EntityUtils.toString(response.getEntity()));
+      int status = response.getStatusLine().getStatusCode();
+      if (status == 200) {
+        LOGGER.info("Delete snapshot repo:{}", repoName);
+      } else {
+        throw new IllegalStateException("Could not delete snapshot:" + jsonResponse.getJSONObject("error"));
+      }
+    } finally {
+      if (response != null) {
+        response.close();
+      }
+    }
+  }
+  
+  public static void takeSnapshot(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser,
+                                  String elasticPass, String repoName, String snapshotName, boolean ignoreUnavailable,
+                                  String... indices)
+    throws URISyntaxException, IOException {
+    CloseableHttpResponse response = null;
+    try {
+      URIBuilder uriBuilder = new URIBuilder();
+      uriBuilder
+        .setPathSegments("_snapshot", repoName, snapshotName)
+        .setParameter("wait_for_completion", "true");
+      HttpPut request = new HttpPut(uriBuilder.build());
+      request.addHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+      String encodedAuth = Base64.getEncoder().encodeToString((elasticUser + ":" + elasticPass).getBytes());
+      request.addHeader(HttpHeaders.AUTHORIZATION, "Basic " + encodedAuth);
+      String body = "{\"indices\":\"" + String.join(",", indices) + "\", " +
+        "\"include_global_state\":false, \"ignore_unavailable\":" + ignoreUnavailable + "}";
+      HttpEntity entity = new ByteArrayEntity(body.getBytes(StandardCharsets.UTF_8));
+      request.setEntity(entity);
+      response = httpClient.execute(elastic, request);
+      JSONObject jsonResponse = new JSONObject(EntityUtils.toString(response.getEntity()));
+      int status = response.getStatusLine().getStatusCode();
+      if (status == 200) {
+        LOGGER.info("Take snapshot:{} in repo:{}", snapshotName, repoName);
+      } else {
+        throw new IllegalStateException("Could not take snapshot:" + jsonResponse.getJSONObject("error"));
+      }
+    } finally {
+      if (response != null) {
+        response.close();
+      }
+    }
+  }
+  
+  public static void restoreSnapshot(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser,
+                                     String elasticPass, String repoName, String snapshotName, String[] indices,
+                                     boolean ignoreUnavailable)
+    throws URISyntaxException, IOException {
+    CloseableHttpResponse response = null;
+    try {
+      URIBuilder uriBuilder = new URIBuilder();
+      uriBuilder
+        .setPathSegments("_snapshot", repoName, snapshotName, "_restore") ;
+      HttpPost request = new HttpPost(uriBuilder.build());
+      request.addHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+      String encodedAuth = Base64.getEncoder().encodeToString((elasticUser + ":" + elasticPass).getBytes());
+      request.addHeader(HttpHeaders.AUTHORIZATION, "Basic " + encodedAuth);
+      String body = "{\"indices\":\"" + String.join(",", indices) + "\", " +
+        "\"include_global_state\":false, \"ignore_unavailable\":" + ignoreUnavailable + "}";
+      HttpEntity entity = new ByteArrayEntity(body.getBytes(StandardCharsets.UTF_8));
+      request.setEntity(entity);
+      response = httpClient.execute(elastic, request);
+      JSONObject jsonResponse = new JSONObject(EntityUtils.toString(response.getEntity()));
+      int status = response.getStatusLine().getStatusCode();
+      if (status == 200) {
+        LOGGER.info("Restore snapshot:{} from repo:{}", snapshotName, repoName);
+      } else {
+        throw new IllegalStateException("Could not restore snapshot:" + jsonResponse.getJSONObject("error"));
+      }
+    } finally {
+      if (response != null) {
+        response.close();
+      }
+    }
+  }
+  
+  public static void deleteSnapshot(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser,
+                                    String elasticPass, String repoName, String snapshotName)
+    throws URISyntaxException, IOException {
+    CloseableHttpResponse response = null;
+    try {
+      URIBuilder uriBuilder = new URIBuilder();
+      uriBuilder
+        .setPathSegments("_snapshot", repoName, snapshotName) ;
+      HttpDelete request = new HttpDelete(uriBuilder.build());
+      request.addHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+      String encodedAuth = Base64.getEncoder().encodeToString((elasticUser + ":" + elasticPass).getBytes());
+      request.addHeader(HttpHeaders.AUTHORIZATION, "Basic " + encodedAuth);
+      response = httpClient.execute(elastic, request);
+      JSONObject jsonResponse = new JSONObject(EntityUtils.toString(response.getEntity()));
+      int status = response.getStatusLine().getStatusCode();
+      if (status == 200) {
+        LOGGER.info("Delete snapshot:{} from repo:{}", snapshotName, repoName);
+      } else {
+        throw new IllegalStateException("Could not delete snapshot:" + jsonResponse.getJSONObject("error"));
+      }
+    } finally {
+      if (response != null) {
+        response.close();
+      }
+    }
+  }
 }
