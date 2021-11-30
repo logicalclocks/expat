@@ -148,7 +148,7 @@ public class JobsDockerCommandArgsMigration implements MigrateStep {
             config.put("args", defaultArgs);
           }
           if (config.has("command")) {
-            command = (List<String>) config.get("defaultArgs");
+            command = (List<String>) config.get("args");
             if (command != null && !command.isEmpty()) {
               config.put("command", command.get(0));
             }
