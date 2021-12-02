@@ -86,8 +86,8 @@ public class JobsDockerCommandArgsMigration implements MigrateStep {
           if (config.has("command")) {
             command = config.getString("command");
             config.remove("command");
-            List<String> commandList = new ArrayList<>();
-            commandList.add(command);
+            JSONArray commandList = new JSONArray();
+            commandList.put(command);
             config.put("command", commandList);
           }
 
@@ -153,7 +153,7 @@ public class JobsDockerCommandArgsMigration implements MigrateStep {
               config.put("command", command.getString(0));
             }
           }
-
+          
           String newConfig = config.toString();
           LOGGER.info("Successfully rollbacked JobID: " + id);
 
