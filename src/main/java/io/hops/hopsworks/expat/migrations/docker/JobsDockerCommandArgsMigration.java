@@ -25,6 +25,7 @@ import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.sql.Connection;
@@ -134,7 +135,6 @@ public class JobsDockerCommandArgsMigration implements MigrateStep {
       updateJSONConfigStmt = connection.prepareStatement(UPDATE_SPECIFIC_JOB_JSON_CONFIG);
       while (jobsResultSet.next()) {
         String defaultArgs;
-        List<String> command;
         int id = jobsResultSet.getInt(1);
         String oldConfig = jobsResultSet.getString(2);
         if(oldConfig != null) {
@@ -148,9 +148,9 @@ public class JobsDockerCommandArgsMigration implements MigrateStep {
             config.put("args", defaultArgs);
           }
           if (config.has("command")) {
-            command = (List<String>) config.get("args");
-            if (command != null && !command.isEmpty()) {
-              config.put("command", command.get(0));
+            JSONArray command = config.getJSONArray("command");
+            if (command != null && command.length() > 0) {
+              config.put("command", command.getString(0));
             }
           }
 
