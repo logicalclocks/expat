@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import io.hops.hopsworks.common.hdfs.DistributedFileSystemOps;
-import io.hops.hopsworks.exceptions.FeaturestoreException;
 import io.hops.hopsworks.expat.configuration.ConfigurationBuilder;
 import io.hops.hopsworks.expat.configuration.ExpatConf;
 import io.hops.hopsworks.expat.db.DbConnectionFactory;
@@ -12,7 +11,6 @@ import io.hops.hopsworks.expat.migrations.MigrateStep;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
 import io.hops.hopsworks.expat.migrations.projects.util.HopsClient;
-import io.hops.hopsworks.restutils.RESTCodes;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.hadoop.fs.FileStatus;
@@ -29,7 +27,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
-import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 public class StorageConnectorMigration implements MigrateStep {
@@ -63,9 +60,13 @@ public class StorageConnectorMigration implements MigrateStep {
     dryRun = conf.getBoolean(ExpatConf.DRY_RUN);
   }
   
-  private void close() throws SQLException {
+  private void close() {
     if(connection != null) {
-      connection.close();
+      try {
+        connection.close();
+      } catch (SQLException ex) {
+        LOGGER.error("failed to close jdbc connection", ex);
+      }
     }
     if(dfso != null) {
       dfso.close();
@@ -81,25 +82,14 @@ public class StorageConnectorMigration implements MigrateStep {
     } catch (ConfigurationException | SQLException ex) {
       String errorMsg = "Could not initialize database connection";
       LOGGER.error(errorMsg);
+      close();
       throw new MigrationException(errorMsg, ex);
-    } finally {
-      try {
-        close();
-      } catch (SQLException e) {
-        throw new MigrationException("error", e);
-      }
     }
     
     migrateSnowflakeOptions();
     migrateConnectorResourcesDirectory();
     
-    if (connection != null) {
-      try {
-        connection.close();
-      } catch (SQLException e) {
-        throw new MigrationException("failed to close jdbc connection", e);
-      }
-    }
+    close();
   
     LOGGER.info("Finished storage connector migration");
   }
@@ -112,25 +102,15 @@ public class StorageConnectorMigration implements MigrateStep {
     } catch (ConfigurationException | SQLException ex) {
       String errorMsg = "Could not initialize database connection";
       LOGGER.error(errorMsg);
+      close();
       throw new RollbackException(errorMsg, ex);
-    } finally {
-      try {
-        close();
-      } catch (SQLException e) {
-        throw new RollbackException("error", e);
-      }
     }
   
     rollbackSnowflakeOptions();
     rollbackConnectorResourcesDirectory();
-  
-    if (connection != null) {
-      try {
-        connection.close();
-      } catch (SQLException e) {
-        throw new RollbackException("failed to close jdbc connection", e);
-      }
-    }
+    
+    close();
+
     LOGGER.info("Finished storage connector rollback");
   }
   
@@ -155,7 +135,7 @@ public class StorageConnectorMigration implements MigrateStep {
         try {
           // for idempotency try first to deserialize with new format
           arguments = toOptions(currentArguments);
-        } catch (FeaturestoreException e) {
+        } catch (MigrationException e) {
           arguments = oldToOptions(currentArguments);
         }
       
@@ -171,13 +151,8 @@ public class StorageConnectorMigration implements MigrateStep {
     
       connection.setAutoCommit(true);
     } catch (SQLException e) {
+      close();
       throw new MigrationException("error", e);
-    } finally {
-      try {
-        close();
-      } catch (SQLException e) {
-        throw new MigrationException("error", e);
-      }
     }
     LOGGER.info("Finished to migrate Snowflake Connector Options");
   }
@@ -213,13 +188,8 @@ public class StorageConnectorMigration implements MigrateStep {
       connection.commit();
       connection.setAutoCommit(true);
     } catch (SQLException | IOException e) {
+      close();
       throw new MigrationException("error", e);
-    } finally {
-      try {
-        close();
-      } catch (SQLException e) {
-        throw new MigrationException("error", e);
-      }
     }
     
     LOGGER.info("Finished to migrate connector resources directory");
@@ -246,7 +216,7 @@ public class StorageConnectorMigration implements MigrateStep {
         try {
           // for idempotency try first to deserialize with new format
           arguments = toOptions(currentArguments);
-        } catch (FeaturestoreException e) {
+        } catch (MigrationException e) {
           arguments = oldToOptions(currentArguments);
         }
         
@@ -262,13 +232,8 @@ public class StorageConnectorMigration implements MigrateStep {
       
       connection.setAutoCommit(true);
     } catch (SQLException e) {
+      close();
       throw new RollbackException("error", e);
-    } finally {
-      try {
-        close();
-      } catch (SQLException e) {
-        throw new RollbackException("error", e);
-      }
     }
     LOGGER.info("Finished to rollback Snowflake Connector Options");
   }
@@ -299,13 +264,8 @@ public class StorageConnectorMigration implements MigrateStep {
       connection.commit();
       connection.setAutoCommit(true);
     } catch (SQLException | IOException e) {
+      close();
       throw new RollbackException("error", e);
-    } finally {
-      try {
-        close();
-      } catch (SQLException e) {
-        throw new RollbackException("error", e);
-      }
     }
     
     LOGGER.info("Finished to rollback connector resources directory");
@@ -336,7 +296,7 @@ public class StorageConnectorMigration implements MigrateStep {
   }
   
   // new toOptions
-  public List<OptionDTO> toOptions(String arguments) throws FeaturestoreException {
+  public List<OptionDTO> toOptions(String arguments) throws MigrationException {
     if (Strings.isNullOrEmpty(arguments)) {
       return null;
     }
@@ -345,8 +305,7 @@ public class StorageConnectorMigration implements MigrateStep {
       OptionDTO[] optionArray = objectMapper.readValue(arguments, OptionDTO[].class);
       return Arrays.asList(optionArray);
     } catch (JsonProcessingException e) {
-      throw new FeaturestoreException(RESTCodes.FeaturestoreErrorCode.STORAGE_CONNECTOR_GET_ERROR, Level.SEVERE,
-        "Error deserializing options list provided with connector", e.getMessage());
+      throw new MigrationException("error", e);
     }
   }
   
