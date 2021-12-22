@@ -46,6 +46,10 @@ public class StorageConnectorMigration implements MigrateStep {
     "SELECT id, arguments FROM feature_store_snowflake_connector";
   private final static String UPDATE_SNOWFLAKE_ARGUMENTS =
     "UPDATE feature_store_snowflake_connector SET arguments = ? WHERE id = ?";
+  private final static String GET_ALL_REDSHIFT_CONNECTORS =
+    "SELECT id, arguments FROM feature_store_redshift_connector";
+  private final static String UPDATE_REDSHIFT_ARGUMENTS =
+    "UPDATE feature_store_redshift_connector SET arguments = ? WHERE id = ?";
   private final static String GET_PROJECT_NAMES = "SELECT projectname FROM project";
   
   private void setup() throws ConfigurationException, SQLException {
@@ -87,6 +91,7 @@ public class StorageConnectorMigration implements MigrateStep {
     }
     
     migrateSnowflakeOptions();
+    migrateRedshiftOptions();
     migrateConnectorResourcesDirectory();
     
     close();
@@ -107,6 +112,7 @@ public class StorageConnectorMigration implements MigrateStep {
     }
   
     rollbackSnowflakeOptions();
+    rollbackRedshiftOptions();
     rollbackConnectorResourcesDirectory();
     
     close();
@@ -115,22 +121,31 @@ public class StorageConnectorMigration implements MigrateStep {
   }
   
   private void migrateSnowflakeOptions() throws MigrationException {
-    LOGGER.info("Starting to migrate Snowflake Connector Options");
+    migrateConnectorOptions(GET_ALL_SNOWFLAKE_CONNECTORS, UPDATE_SNOWFLAKE_ARGUMENTS, "snowflake");
+  }
+  
+  private void migrateRedshiftOptions() throws MigrationException {
+    migrateConnectorOptions(GET_ALL_REDSHIFT_CONNECTORS, UPDATE_REDSHIFT_ARGUMENTS, "redshift");
+  }
+  
+  private void migrateConnectorOptions(String getConnectorsSql, String updateConnectorSql, String connector)
+      throws MigrationException {
+    LOGGER.info("Starting to migrate " + connector + " Connector Options");
   
     try {
       connection.setAutoCommit(false);
     
-      PreparedStatement getStatement = connection.prepareStatement(GET_ALL_SNOWFLAKE_CONNECTORS);
-      PreparedStatement updateStatement = connection.prepareStatement(UPDATE_SNOWFLAKE_ARGUMENTS);
-      ResultSet snowflakeConnectorArguments = getStatement.executeQuery();
+      PreparedStatement getStatement = connection.prepareStatement(getConnectorsSql);
+      PreparedStatement updateStatement = connection.prepareStatement(updateConnectorSql);
+      ResultSet connectorArguments = getStatement.executeQuery();
     
       int currentConnectorId;
       String currentArguments;
       List<OptionDTO> arguments;
     
-      while (snowflakeConnectorArguments.next()) {
-        currentArguments = snowflakeConnectorArguments.getString("arguments");
-        currentConnectorId = snowflakeConnectorArguments.getInt("id");
+      while (connectorArguments.next()) {
+        currentArguments = connectorArguments.getString("arguments");
+        currentConnectorId = connectorArguments.getInt("id");
         
         try {
           // for idempotency try first to deserialize with new format
@@ -154,7 +169,7 @@ public class StorageConnectorMigration implements MigrateStep {
       close();
       throw new MigrationException("error", e);
     }
-    LOGGER.info("Finished to migrate Snowflake Connector Options");
+    LOGGER.info("Finished to migrate " + connector + " Connector Options");
   }
   
   private void migrateConnectorResourcesDirectory() throws MigrationException {
@@ -196,22 +211,31 @@ public class StorageConnectorMigration implements MigrateStep {
   }
   
   private void rollbackSnowflakeOptions() throws RollbackException {
-    LOGGER.info("Starting to rollback Snowflake Connector Options");
+    rollbackConnectorOptions(GET_ALL_SNOWFLAKE_CONNECTORS, UPDATE_SNOWFLAKE_ARGUMENTS, "snowflake");
+  }
+  
+  private void rollbackRedshiftOptions() throws RollbackException {
+    rollbackConnectorOptions(GET_ALL_REDSHIFT_CONNECTORS, UPDATE_REDSHIFT_ARGUMENTS, "redshift");
+  }
+  
+  private void rollbackConnectorOptions(String getConnectorSql, String updateConnectorSql, String connector)
+      throws RollbackException {
+    LOGGER.info("Starting to rollback " + connector + " Connector Options");
     
     try {
       connection.setAutoCommit(false);
       
-      PreparedStatement getStatement = connection.prepareStatement(GET_ALL_SNOWFLAKE_CONNECTORS);
-      PreparedStatement updateStatement = connection.prepareStatement(UPDATE_SNOWFLAKE_ARGUMENTS);
-      ResultSet snowflakeConnectorArguments = getStatement.executeQuery();
+      PreparedStatement getStatement = connection.prepareStatement(getConnectorSql);
+      PreparedStatement updateStatement = connection.prepareStatement(updateConnectorSql);
+      ResultSet connectorArguments = getStatement.executeQuery();
       
       int currentConnectorId;
       String currentArguments;
       List<OptionDTO> arguments;
       
-      while (snowflakeConnectorArguments.next()) {
-        currentArguments = snowflakeConnectorArguments.getString("arguments");
-        currentConnectorId = snowflakeConnectorArguments.getInt("id");
+      while (connectorArguments.next()) {
+        currentArguments = connectorArguments.getString("arguments");
+        currentConnectorId = connectorArguments.getInt("id");
         
         try {
           // for idempotency try first to deserialize with new format
@@ -235,7 +259,7 @@ public class StorageConnectorMigration implements MigrateStep {
       close();
       throw new RollbackException("error", e);
     }
-    LOGGER.info("Finished to rollback Snowflake Connector Options");
+    LOGGER.info("Finished to rollback " + connector + " Connector Options");
   }
   
   private void rollbackConnectorResourcesDirectory() throws RollbackException {
@@ -277,7 +301,7 @@ public class StorageConnectorMigration implements MigrateStep {
     }
     return Arrays.stream(arguments.split(";"))
       .map(arg -> arg.split("="))
-      .map(a -> new OptionDTO(a[0], a[1]))
+      .map(a -> (a.length > 1) ? new OptionDTO(a[0], a[1]) : new OptionDTO(a[0], null))
       .collect(Collectors.toList());
   }
   
@@ -289,8 +313,7 @@ public class StorageConnectorMigration implements MigrateStep {
     for (OptionDTO option : options) {
       arguments.append(arguments.length() > 0? ";" : "")
         .append(option.getName())
-        .append("=")
-        .append(option.getValue());
+        .append(option.getValue() != null ? "=" + option.getValue() : "");
     }
     return arguments.toString();
   }
