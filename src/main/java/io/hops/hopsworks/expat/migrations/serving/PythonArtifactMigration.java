@@ -258,39 +258,47 @@ public class PythonArtifactMigration implements MigrateStep {
             int modelServer = servingsResultSet.getInt(5);
             String predictor = servingsResultSet.getString(6);
     
-            if (modelServer == 1 && artifactVersion > 0) {
-              // if flask and artifact version > 0
-              
-              // Keep track of model name for later creation of artifact version 0
-              createModelArtifactV0.add(modelName + "/" + modelVersion);
-    
-              // Copy predictor script to model version folder if it doesn't already exists.
-              Path modelVersionPath = new Path(String.format(MODEL_VERSION_PATH, projectName, modelName, modelVersion));
-              FileStatus fileStatus = dfso.getFileStatus(modelVersionPath);
-              FsPermission permission = fileStatus.getPermission();
-              String username = fileStatus.getOwner();
-              String group = fileStatus.getGroup();
-              Path artifactVersionPath = new Path(String.format(ARTIFACT_VERSION_PATH, projectName, modelName,
-                modelVersion, artifactVersion));
-              String newPredictor = String.format(NEW_PREDICTOR_NAME, artifactVersion, predictor);
-              copyPredictorFileToModelVersionFolder(modelVersionPath, artifactVersionPath, predictor, newPredictor,
-                permission, username, group, dfso);
-    
-              // Delete artifact version
-              if (dryRun) {
-                LOGGER.info("Delete artifact version directory: " + artifactVersionPath.toString());
+            if (modelServer == 1) {
+              // if flask
+              if (artifactVersion > 0) {
+                // and artifact version > 0
+                
+                // Keep track of model name for later creation of artifact version 0
+                createModelArtifactV0.add(modelName + "/" + modelVersion);
+      
+                // Copy predictor script to model version folder if it doesn't already exists.
+                Path modelVersionPath = new Path(String.format(MODEL_VERSION_PATH, projectName, modelName,
+                  modelVersion));
+                FileStatus fileStatus = dfso.getFileStatus(modelVersionPath);
+                FsPermission permission = fileStatus.getPermission();
+                String username = fileStatus.getOwner();
+                String group = fileStatus.getGroup();
+                Path artifactVersionPath = new Path(String.format(ARTIFACT_VERSION_PATH, projectName, modelName,
+                  modelVersion, artifactVersion));
+                String newPredictor = String.format(NEW_PREDICTOR_NAME, artifactVersion, predictor);
+                copyPredictorFileToModelVersionFolder(modelVersionPath, artifactVersionPath, predictor, newPredictor,
+                  permission, username, group, dfso);
+      
+                // Delete artifact version
+                if (dryRun) {
+                  LOGGER.info("Delete artifact version directory: " + artifactVersionPath.toString());
+                } else {
+                  dfso.rm(artifactVersionPath, true);
+                }
+      
+                // Update serving
+                // - modelPath -> predictor script in model version folder
+                // - artifactVersion -> 0
+                // - predictor -> will be removed
+                String scriptPath = String.format(MODEL_VERSION_PATH + "/%s", projectName, modelName, modelVersion,
+                  newPredictor);
+                updateServing(servingId, scriptPath, 0, null, updateServingStmt);
+                updateServings = true;
               } else {
-                dfso.rm(artifactVersionPath, true);
+                // and artifact version = 0
+                LOGGER.info(String.format("Migration of MODEL-ONLY artifact ignored for model %s and version " +
+                  "%s in project %s", modelName, modelVersion, projectName));
               }
-    
-              // Update serving
-              // - modelPath -> predictor script in model version folder
-              // - artifactVersion -> 0
-              // - predictor -> will be removed
-              String scriptPath = String.format(MODEL_VERSION_PATH + "/%s", projectName, modelName, modelVersion,
-                newPredictor);
-              updateServing(servingId, scriptPath, 0, null, updateServingStmt);
-              updateServings = true;
             }
             if (modelServer == 0) {
               // if tensorflow serving, keep track of model name/version to avoid removing its artifacts
@@ -327,6 +335,9 @@ public class PythonArtifactMigration implements MigrateStep {
   
   private int migratePythonArtifact(String projectName, String modelName, int modelVersion, String predictor,
     DistributedFileSystemOps dfso) throws IOException, IllegalAccessException, SQLException, InstantiationException {
+    LOGGER.info(String.format("Migration of artifact for model %s and version %s with predictor %s in project %s",
+      modelName, modelVersion, predictor, projectName));
+    
     // -- per artifact version
     int artifactVersion = 1;
     Path artifactPath = new Path(String.format(ARTIFACT_VERSION_PATH, projectName, modelName, modelVersion,
@@ -591,6 +602,8 @@ public class PythonArtifactMigration implements MigrateStep {
   
   private void deletePythonArtifacts(String projectName, HashSet<String> keepModelArtifacts,
     DistributedFileSystemOps dfso) throws IOException {
+    LOGGER.info(String.format("Delete sklearn artifacts for project %s", projectName));
+    
     // -- per model
     for (FileStatus modelDir : dfso.listStatus(new Path(String.format(MODELS_PATH, projectName)))) {
       if (!modelDir.isDirectory()) {
@@ -634,7 +647,8 @@ public class PythonArtifactMigration implements MigrateStep {
   private void deleteNewAndCreateV0Artifacts(String projectName, HashSet<String> ignoreModels,
     HashSet<String> createModelArtifactV0, DistributedFileSystemOps dfso)
     throws IOException, IllegalAccessException, SQLException, InstantiationException {
-
+    LOGGER.info(String.format("Rollback of new artifacts for models in project %s", projectName));
+    
     // -- per model
     for (FileStatus modelDir : dfso.listStatus(new Path(String.format(MODELS_PATH, projectName)))) {
       if (!modelDir.isDirectory()) {
