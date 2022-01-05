@@ -50,6 +50,10 @@ public class StorageConnectorMigration implements MigrateStep {
     "SELECT id, arguments FROM feature_store_redshift_connector";
   private final static String UPDATE_REDSHIFT_ARGUMENTS =
     "UPDATE feature_store_redshift_connector SET arguments = ? WHERE id = ?";
+  private final static String GET_ALL_JDBC_CONNECTORS =
+    "SELECT id, arguments FROM feature_store_jdbc_connector";
+  private final static String UPDATE_JDBC_ARGUMENTS =
+    "UPDATE feature_store_jdbc_connector SET arguments = ? WHERE id = ?";
   private final static String GET_PROJECT_NAMES = "SELECT projectname FROM project";
   
   private void setup() throws ConfigurationException, SQLException {
@@ -92,6 +96,7 @@ public class StorageConnectorMigration implements MigrateStep {
     
     migrateSnowflakeOptions();
     migrateRedshiftOptions();
+    migrateJDBCOptions();
     migrateConnectorResourcesDirectory();
     
     close();
@@ -113,6 +118,7 @@ public class StorageConnectorMigration implements MigrateStep {
   
     rollbackSnowflakeOptions();
     rollbackRedshiftOptions();
+    rollbackJDBCOptions();
     rollbackConnectorResourcesDirectory();
     
     close();
@@ -127,6 +133,11 @@ public class StorageConnectorMigration implements MigrateStep {
   private void migrateRedshiftOptions() throws MigrationException {
     migrateConnectorOptions(GET_ALL_REDSHIFT_CONNECTORS, UPDATE_REDSHIFT_ARGUMENTS, "redshift");
   }
+  
+  private void migrateJDBCOptions() throws MigrationException {
+    migrateConnectorOptions(GET_ALL_JDBC_CONNECTORS, UPDATE_JDBC_ARGUMENTS, "jdbc");
+  }
+  
   
   private void migrateConnectorOptions(String getConnectorsSql, String updateConnectorSql, String connector)
       throws MigrationException {
@@ -151,7 +162,11 @@ public class StorageConnectorMigration implements MigrateStep {
           // for idempotency try first to deserialize with new format
           arguments = toOptions(currentArguments);
         } catch (MigrationException e) {
-          arguments = oldToOptions(currentArguments);
+          if (connector.equals("jdbc")) {
+            arguments = oldToOptions(currentArguments, ",");
+          } else {
+            arguments = oldToOptions(currentArguments, ";");
+          }
         }
       
         if (!dryRun) {
@@ -218,6 +233,10 @@ public class StorageConnectorMigration implements MigrateStep {
     rollbackConnectorOptions(GET_ALL_REDSHIFT_CONNECTORS, UPDATE_REDSHIFT_ARGUMENTS, "redshift");
   }
   
+  private void rollbackJDBCOptions() throws RollbackException {
+    rollbackConnectorOptions(GET_ALL_JDBC_CONNECTORS, UPDATE_JDBC_ARGUMENTS, "jdbc");
+  }
+  
   private void rollbackConnectorOptions(String getConnectorSql, String updateConnectorSql, String connector)
       throws RollbackException {
     LOGGER.info("Starting to rollback " + connector + " Connector Options");
@@ -241,11 +260,19 @@ public class StorageConnectorMigration implements MigrateStep {
           // for idempotency try first to deserialize with new format
           arguments = toOptions(currentArguments);
         } catch (MigrationException e) {
-          arguments = oldToOptions(currentArguments);
+          if (connector.equals("jdbc")) {
+            arguments = oldToOptions(currentArguments, ",");
+          } else {
+            arguments = oldToOptions(currentArguments, ";");
+          }
         }
         
         if (!dryRun) {
-          updateStatement.setString(1, oldFromOptions(arguments));
+          if (connector.equals("jdbc")) {
+            updateStatement.setString(1, oldFromOptions(arguments, ","));
+          } else {
+            updateStatement.setString(1, oldFromOptions(arguments, ";"));
+          }
           updateStatement.setInt(2, currentConnectorId);
           updateStatement.execute();
         }
@@ -295,32 +322,41 @@ public class StorageConnectorMigration implements MigrateStep {
     LOGGER.info("Finished to rollback connector resources directory");
   }
   
-  private List<OptionDTO> oldToOptions(String arguments) {
-    if (Strings.isNullOrEmpty(arguments)) {
+  private List<OptionDTO> oldToOptions(String arguments, String separator) {
+    if (Strings.isNullOrEmpty(arguments) || arguments.equals("[{}]") || arguments.equals("null")) {
       return null;
     }
-    return Arrays.stream(arguments.split(";"))
+    List<OptionDTO> optionList = Arrays.stream(arguments.split(separator))
       .map(arg -> arg.split("="))
       .map(a -> (a.length > 1) ? new OptionDTO(a[0], a[1]) : new OptionDTO(a[0], null))
       .collect(Collectors.toList());
+    if (dryRun) {
+      LOGGER.info("Old arguments string: " + arguments);
+      LOGGER.info("Deserialized options: " + optionList);
+    }
+    return optionList;
   }
   
-  private String oldFromOptions(List<OptionDTO> options) {
+  private String oldFromOptions(List<OptionDTO> options, String separator) {
     if (options == null || options.isEmpty()) {
       return null;
     }
     StringBuilder arguments = new StringBuilder();
     for (OptionDTO option : options) {
-      arguments.append(arguments.length() > 0? ";" : "")
+      arguments.append(arguments.length() > 0? separator : "")
         .append(option.getName())
         .append(option.getValue() != null ? "=" + option.getValue() : "");
+    }
+    if (dryRun) {
+      LOGGER.info("Old Deserialized Options: " + options);
+      LOGGER.info("Rolling back to string: " + arguments);
     }
     return arguments.toString();
   }
   
   // new toOptions
   public List<OptionDTO> toOptions(String arguments) throws MigrationException {
-    if (Strings.isNullOrEmpty(arguments)) {
+    if (Strings.isNullOrEmpty(arguments) || arguments.equals("[{}]") || arguments.equals("null")) {
       return null;
     }
     
