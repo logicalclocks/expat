@@ -185,8 +185,10 @@ public class UpdateFeaturegroupsForType implements MigrateStep {
       byte[] existingVal = dfso.getXAttr(new Path(featuregroupPath), "provenance.featurestore");
       FeaturegroupXAttr.FullDTO existingXattr = jaxbUnmarshal(jaxbContext, existingVal);
 
-      if(existingXattr.getFgType() == null) {
-        LOGGER.info("featuregroup:{} rollbacked (no fg type value)", featuregroupPath);
+      if(existingXattr == null) {
+        LOGGER.info("featuregroup:{} rollbacked (no xattr fg value)", featuregroupPath);
+      } else if(existingXattr.getFgType() == null) {
+        LOGGER.info("featuregroup:{} rollbacked (no xattr fg type value)", featuregroupPath);
       } else {
         FeaturegroupXAttr.FGType fgType = null;
         switch(featuregroupType) {
@@ -217,6 +219,10 @@ public class UpdateFeaturegroupsForType implements MigrateStep {
 
       byte[] existingVal = dfso.getXAttr(new Path(featuregroupPath), "provenance.featurestore");
       FeaturegroupXAttr.FullDTO xattr = jaxbUnmarshal(jaxbContext, existingVal);
+      if(xattr == null) {
+        LOGGER.info("featuregroup:{} no xattr fg value", featuregroupPath);
+        return;
+      }
       switch(featuregroupType) {
         case 0: // Cache
           xattr.setFgType(FeaturegroupXAttr.FGType.CACHED);
@@ -252,6 +258,10 @@ public class UpdateFeaturegroupsForType implements MigrateStep {
 
       byte[] existingVal = dfso.getXAttr(new Path(featuregroupPath), "provenance.featurestore");
       FeaturegroupXAttr.FullDTO xattr = jaxbUnmarshal(jaxbContext, existingVal);
+      if(xattr == null) {
+        LOGGER.info("featuregroup:{} no xattr fg value", featuregroupPath);
+        return;
+      }
       xattr.setFgType(null);
       byte[] val = jaxbMarshal(jaxbContext, xattr).getBytes();
       try{
