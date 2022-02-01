@@ -33,6 +33,7 @@ import io.hops.hopsworks.expat.migrations.projects.util.HopsClient;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
+import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
@@ -249,8 +250,13 @@ public class ModelArtifactMigration implements MigrateStep {
   }
   
   private void deleteOldArtifacts(String projectName, DistributedFileSystemOps dfso) throws IOException {
+    Path modelsPath = new Path(String.format(MODELS_PATH, projectName));
+    if(!dfso.exists(modelsPath)){
+      LOGGER.info("Project " + projectName + " doesn't have models directory.");
+      return;
+    }
     // -- per model
-    for (FileStatus modelDir : dfso.listStatus(new Path(String.format(MODELS_PATH, projectName)))) {
+    for (FileStatus modelDir : dfso.listStatus(modelsPath)) {
       if (!modelDir.isDirectory()) {
         continue; // ignore files
       }
@@ -284,8 +290,13 @@ public class ModelArtifactMigration implements MigrateStep {
   }
   
   private void deleteNewArtifacts(String projectName, DistributedFileSystemOps dfso) throws IOException {
+    Path modelsPath = new Path(String.format(MODELS_PATH, projectName));
+    if(!dfso.exists(modelsPath)){
+      LOGGER.info("Project " + projectName + " doesn't have models directory.");
+      return;
+    }
     // -- per model
-    for (FileStatus modelDir : dfso.listStatus(new Path(String.format(MODELS_PATH, projectName)))) {
+    for (FileStatus modelDir : dfso.listStatus(modelsPath)) {
       if (!modelDir.isDirectory()) {
         continue; // ignore files
       }
@@ -384,6 +395,9 @@ public class ModelArtifactMigration implements MigrateStep {
     if (dryRun) {
       LOGGER.info("Create local directory: " + localDir);
     } else {
+      if (zipDir.exists()) {
+        FileUtils.deleteDirectory(zipDir);
+      }
       if (!zipDir.mkdirs()) {
         throw new IOException("Local directory could not be created: " + localDir);
       }
