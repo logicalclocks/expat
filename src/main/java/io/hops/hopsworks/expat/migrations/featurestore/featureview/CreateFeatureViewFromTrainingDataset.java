@@ -47,7 +47,11 @@ public class CreateFeatureViewFromTrainingDataset extends FeatureStoreMigration 
           "INNER JOIN project AS c ON b.project_id = c.id " +
           "INNER JOIN users AS d on a.creator = d.uid " +
           "WHERE a.feature_view_id is null";
-
+  private final static String GET_ALL_FEATURE_VIEWS =
+      "SELECT fv.id, p.projectname " +
+          "FROM feature_view AS fv " +
+          "INNER JOIN feature_store AS fs ON fv.feature_store_id = fs.id " +
+          "INNER JOIN project AS p ON fs.project_id = p.id";
   private final static String GET_FEATURES =
       "SELECT fg.name AS fg_name, fg.version AS fg_version, tdf.name AS name " +
           "FROM training_dataset_feature AS tdf " +
@@ -56,6 +60,8 @@ public class CreateFeatureViewFromTrainingDataset extends FeatureStoreMigration 
 
   private final static String GET_ARRAY = "SELECT a.id FROM %s AS a WHERE %s";
   private final static String SET_FEATURE_VIEW = "UPDATE %s SET feature_view_id = ? WHERE %s = ?";
+  private final static String REMOVE_FEATURE_VIEW_FROM_TABLES = "UPDATE %s SET %s = null WHERE %s = ?";
+  private final static String DELETE_FEATURE_VIEW = "DELETE FROM feature_view WHERE id = ?";
 
   private final static String INSERT_FEATURE_VIEW =
       "INSERT INTO feature_view(" +
@@ -80,7 +86,8 @@ public class CreateFeatureViewFromTrainingDataset extends FeatureStoreMigration 
     // 2. Create fv from td
     // 3. set inode
     // 4. set xattr
-    // 5. add fv to td
+    // 5. add fv to td, td feature, td join, td filter
+    // 6. change td name (add fv version)
     try {
       connection.setAutoCommit(false);
       PreparedStatement getTrainingDatasetsStatement = connection.prepareStatement(GET_ALL_TRAINING_DATASETS);
@@ -117,6 +124,7 @@ public class CreateFeatureViewFromTrainingDataset extends FeatureStoreMigration 
         setInode(insertFeatureViewStatement, projectName, userName, name, version);
         if (!dryRun) {
           int affectedRows = insertFeatureViewStatement.executeUpdate();
+          // need to commit here, otherwise tables are locked.
           connection.commit();
           if (affectedRows != 1) {
             throw new MigrationException("Creating feature view failed, no rows affected.");
@@ -146,6 +154,82 @@ public class CreateFeatureViewFromTrainingDataset extends FeatureStoreMigration 
       throw new MigrationException("Migration failed. Cannot commit.", e);
     } finally {
       super.close();
+    }
+  }
+
+  public void runRollback() throws RollbackException {
+    // 1. remove fv from td, td feature, td join, td filter
+    // 2. remove file and inode
+    // 3. remove fv
+    // 4. change td name
+    try {
+      Integer n = 0;
+      connection.setAutoCommit(false);
+      PreparedStatement getFeatureViewsStatement = connection.prepareStatement(GET_ALL_FEATURE_VIEWS);
+      ResultSet featureViews = getFeatureViewsStatement.executeQuery();
+      while (featureViews.next()) {
+        n += 1;
+        Integer fvId = featureViews.getInt("id");
+        String projectName = featureViews.getString("projectname");
+        if (!dryRun) {
+          removeFeatureViewFromTables(fvId);
+          deleteFeatureView(fvId);
+          // need to commit here so that removeFeatureViewFromTables works properly
+          connection.commit();
+          removeFeatureViewFiles(projectName);
+        }
+      }
+      connection.setAutoCommit(true);
+      LOGGER.info(n + " training dataset records have been rollback.");
+    } catch (SQLException e) {
+      throw new RollbackException("Rollback failed. Cannot commit.", e);
+    } finally {
+      super.close();
+    }
+  }
+
+  private void removeFeatureViewFromTables(Integer fvId) throws RollbackException {
+    removeFeatureViewFromTable("training_dataset_feature", fvId);
+    removeFeatureViewFromTable("training_dataset_filter", fvId);
+    removeFeatureViewFromTable("training_dataset_join", fvId);
+    removeFeatureViewFromTable("training_dataset", fvId);
+  }
+
+  private void removeFeatureViewFromTable(String tableName, Integer featureViewId) throws RollbackException {
+    String featureViewIdField = "feature_view_id";
+    String sql = String.format(REMOVE_FEATURE_VIEW_FROM_TABLES, tableName, featureViewIdField, featureViewIdField);
+    try {
+      PreparedStatement statement = connection.prepareStatement(sql);
+      statement.setInt(1, featureViewId);
+      statement.execute();
+      statement.close();
+    } catch (SQLException e) {
+      throw new RollbackException("Failed to remove featureDTOs.", e);
+    }
+  }
+
+  private void removeFeatureViewFiles(String projectName) throws RollbackException {
+    Path fvPath = getFeatureViewPath(projectName);
+    Path fvPathHdfs = new Path("hdfs://" + fvPath);
+
+    try {
+      if (!dryRun && dfso.exists(fvPath)) {
+        dfso.rm(fvPathHdfs, true);
+      }
+    } catch (IOException e) {
+      throw new RollbackException("HDFS operation failed.", e);
+    }
+  }
+
+  private void deleteFeatureView(Integer fvId) throws RollbackException {
+
+    try {
+      PreparedStatement statement = connection.prepareStatement(DELETE_FEATURE_VIEW);
+      statement.setInt(1, fvId);
+      statement.execute();
+      statement.close();
+    } catch (SQLException e) {
+      throw new RollbackException("Failed to remove feature view.", e);
     }
   }
 
@@ -249,9 +333,13 @@ public class CreateFeatureViewFromTrainingDataset extends FeatureStoreMigration 
     }
   }
 
-  private Path getFeatureViewFullPath(String projectName, String featureViewName, Integer featureViewVersion) {
+  private Path getFeatureViewPath(String projectName) {
     String PATH_TO_FEATURE_VIEW = "/Projects/%s/%s_Training_Datasets" + Path.SEPARATOR + ".featureviews";
-    return new Path(String.format(PATH_TO_FEATURE_VIEW, projectName, projectName),
+    return new Path(String.format(PATH_TO_FEATURE_VIEW, projectName, projectName));
+  }
+
+  private Path getFeatureViewFullPath(String projectName, String featureViewName, Integer featureViewVersion) {
+    return new Path(getFeatureViewPath(projectName),
         featureViewName + "_" + featureViewVersion);
   }
 
@@ -283,11 +371,5 @@ public class CreateFeatureViewFromTrainingDataset extends FeatureStoreMigration 
     } catch (SQLException e) {
       throw new MigrationException("Failed to make featureDTOs.", e);
     }
-  }
-
-  public void runRollback() throws RollbackException {
-    // 1. remove fv from td
-    // 2. remove inode
-    // 3. remove fv
   }
 }
