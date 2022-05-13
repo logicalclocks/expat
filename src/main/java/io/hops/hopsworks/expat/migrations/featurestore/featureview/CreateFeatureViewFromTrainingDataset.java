@@ -62,8 +62,6 @@ public class CreateFeatureViewFromTrainingDataset extends FeatureStoreMigration 
 
   private final static String GET_ARRAY = "SELECT a.id FROM %s AS a WHERE %s";
   private final static String SET_FEATURE_VIEW = "UPDATE %s SET feature_view_id = ? WHERE %s = ?";
-  private final static String SET_TRAINING_DATASET_VERSION =
-      "UPDATE training_dataset SET version = ? WHERE feature_view_id = ?";
   private final static String REMOVE_FEATURE_VIEW_FROM_TABLES = "UPDATE %s SET %s = null WHERE %s = ?";
   private final static String DELETE_FEATURE_VIEW = "DELETE FROM feature_view WHERE id = ?";
 
@@ -139,7 +137,6 @@ public class CreateFeatureViewFromTrainingDataset extends FeatureStoreMigration 
               setFeatureView("training_dataset_filter", "training_dataset_id", trainingDatasetId, fvId);
               setFeatureView("training_dataset_join", "training_dataset", trainingDatasetId, fvId);
               setFeatureView("training_dataset", "id", trainingDatasetId, fvId);
-              setTrainingDatasetVersion(fvId, 1);
               connection.commit();
               setXAttr(featurestoreId, getFeatureViewFullPath(projectName, name, version).toString(),
                   description, created, email, features);
@@ -174,11 +171,9 @@ public class CreateFeatureViewFromTrainingDataset extends FeatureStoreMigration 
       while (featureViews.next()) {
         n += 1;
         Integer fvId = featureViews.getInt("id");
-        Integer fvVersion = featureViews.getInt("version");
         projectNames.add(featureViews.getString("projectname"));
 
         if (!dryRun) {
-          setTrainingDatasetVersion(fvId, fvVersion);
           removeFeatureViewFromTables(fvId);
           deleteFeatureView(fvId);
         }
@@ -366,14 +361,6 @@ public class CreateFeatureViewFromTrainingDataset extends FeatureStoreMigration 
     } catch (SQLException e) {
       throw new MigrationException("Failed to make featureDTOs.", e);
     }
-  }
-
-  private void setTrainingDatasetVersion(Integer featureViewId, Integer tdVersion) throws SQLException {
-    PreparedStatement setFeatureViewStatement = connection.prepareStatement(SET_TRAINING_DATASET_VERSION);
-    setFeatureViewStatement.setInt(1, tdVersion);
-    setFeatureViewStatement.setInt(2, featureViewId);
-    setFeatureViewStatement.execute();
-    setFeatureViewStatement.close();
   }
 
   private Integer[] getArray(String tableName, Integer trainingDatasetId) throws MigrationException {
