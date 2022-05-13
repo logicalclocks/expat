@@ -3,6 +3,7 @@ package io.hops.hopsworks.expat.migrations.featurestore.featureview;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import io.hops.hopsworks.common.featurestore.xattr.dto.FeatureViewXAttrDTO;
 import io.hops.hopsworks.common.featurestore.xattr.dto.FeaturegroupXAttr;
 import io.hops.hopsworks.common.featurestore.xattr.dto.FeaturestoreXAttrsConstants;
@@ -34,6 +35,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -48,7 +50,7 @@ public class CreateFeatureViewFromTrainingDataset extends FeatureStoreMigration 
           "INNER JOIN users AS d on a.creator = d.uid " +
           "WHERE a.feature_view_id is null";
   private final static String GET_ALL_FEATURE_VIEWS =
-      "SELECT fv.id, p.projectname " +
+      "SELECT fv.id, p.projectname, fv.version " +
           "FROM feature_view AS fv " +
           "INNER JOIN feature_store AS fs ON fv.feature_store_id = fs.id " +
           "INNER JOIN project AS p ON fs.project_id = p.id";
@@ -60,6 +62,8 @@ public class CreateFeatureViewFromTrainingDataset extends FeatureStoreMigration 
 
   private final static String GET_ARRAY = "SELECT a.id FROM %s AS a WHERE %s";
   private final static String SET_FEATURE_VIEW = "UPDATE %s SET feature_view_id = ? WHERE %s = ?";
+  private final static String SET_TRAINING_DATASET_VERSION =
+      "UPDATE training_dataset SET version = ? WHERE feature_view_id = ?";
   private final static String REMOVE_FEATURE_VIEW_FROM_TABLES = "UPDATE %s SET %s = null WHERE %s = ?";
   private final static String DELETE_FEATURE_VIEW = "DELETE FROM feature_view WHERE id = ?";
 
@@ -87,7 +91,6 @@ public class CreateFeatureViewFromTrainingDataset extends FeatureStoreMigration 
     // 3. set inode
     // 4. set xattr
     // 5. add fv to td, td feature, td join, td filter
-    // 6. change td name (add fv version)
     try {
       connection.setAutoCommit(false);
       PreparedStatement getTrainingDatasetsStatement = connection.prepareStatement(GET_ALL_TRAINING_DATASETS);
@@ -136,9 +139,10 @@ public class CreateFeatureViewFromTrainingDataset extends FeatureStoreMigration 
               setFeatureView("training_dataset_filter", "training_dataset_id", trainingDatasetId, fvId);
               setFeatureView("training_dataset_join", "training_dataset", trainingDatasetId, fvId);
               setFeatureView("training_dataset", "id", trainingDatasetId, fvId);
+              setTrainingDatasetVersion(fvId, 1);
+              connection.commit();
               setXAttr(featurestoreId, getFeatureViewFullPath(projectName, name, version).toString(),
                   description, created, email, features);
-              connection.commit();
             } else {
               throw new MigrationException("Creating feature view failed, no ID obtained.");
             }
@@ -161,23 +165,30 @@ public class CreateFeatureViewFromTrainingDataset extends FeatureStoreMigration 
     // 1. remove fv from td, td feature, td join, td filter
     // 2. remove file and inode
     // 3. remove fv
-    // 4. change td name
     try {
       Integer n = 0;
       connection.setAutoCommit(false);
       PreparedStatement getFeatureViewsStatement = connection.prepareStatement(GET_ALL_FEATURE_VIEWS);
       ResultSet featureViews = getFeatureViewsStatement.executeQuery();
+      Set<String> projectNames = Sets.newHashSet();
       while (featureViews.next()) {
         n += 1;
         Integer fvId = featureViews.getInt("id");
-        String projectName = featureViews.getString("projectname");
+        Integer fvVersion = featureViews.getInt("version");
+        projectNames.add(featureViews.getString("projectname"));
+
         if (!dryRun) {
+          setTrainingDatasetVersion(fvId, fvVersion);
           removeFeatureViewFromTables(fvId);
           deleteFeatureView(fvId);
-          // need to commit here so that removeFeatureViewFromTables works properly
-          connection.commit();
-          removeFeatureViewFiles(projectName);
         }
+      }
+      // need to commit here so that removeFeatureViewFromTables works properly
+      connection.commit();
+      // Need to remove files separately because removing files remove all feature views and training datasets which
+      // have not been rolled back yet.
+      for (String projectName: projectNames) {
+        removeFeatureViewFiles(projectName);
       }
       connection.setAutoCommit(true);
       LOGGER.info(n + " training dataset records have been rollback.");
@@ -355,6 +366,14 @@ public class CreateFeatureViewFromTrainingDataset extends FeatureStoreMigration 
     } catch (SQLException e) {
       throw new MigrationException("Failed to make featureDTOs.", e);
     }
+  }
+
+  private void setTrainingDatasetVersion(Integer featureViewId, Integer tdVersion) throws SQLException {
+    PreparedStatement setFeatureViewStatement = connection.prepareStatement(SET_TRAINING_DATASET_VERSION);
+    setFeatureViewStatement.setInt(1, tdVersion);
+    setFeatureViewStatement.setInt(2, featureViewId);
+    setFeatureViewStatement.execute();
+    setFeatureViewStatement.close();
   }
 
   private Integer[] getArray(String tableName, Integer trainingDatasetId) throws MigrationException {
