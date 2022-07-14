@@ -70,11 +70,11 @@ public class CreateFeatureViewFromTrainingDataset extends FeatureStoreMigration 
           // 1-5
           "`name`, `feature_store_id`, `created`, `creator`, `version`, " +
           // 6-10
-          "`description`, `label`, `inode_pid`, `inode_name`, `partition_id`" +
+          "`description`, `inode_pid`, `inode_name`, `partition_id`" +
           ") " +
           "VALUE(" +
           "?, ?, ?, ?, ?, " +
-          "?, ?, ?, ?, ?" +
+          "?, ?, ?, ?" +
           ")";
   private JAXBContext jaxbContext;
 
@@ -104,8 +104,6 @@ public class CreateFeatureViewFromTrainingDataset extends FeatureStoreMigration 
         Integer creator = trainingDatasets.getInt("creator");
         Integer version = trainingDatasets.getInt("version");
         String description = trainingDatasets.getString("description");
-        //TODO: extract label
-        String label = "";
 
         Integer trainingDatasetId = trainingDatasets.getInt("id");
         String projectName = trainingDatasets.getString("projectname");
@@ -120,7 +118,6 @@ public class CreateFeatureViewFromTrainingDataset extends FeatureStoreMigration 
         insertFeatureViewStatement.setInt(4, creator);
         insertFeatureViewStatement.setInt(5, version);
         insertFeatureViewStatement.setString(6, description);
-        insertFeatureViewStatement.setString(7, label);
         // inode
         setInode(insertFeatureViewStatement, projectName, userName, name, version);
         if (!dryRun) {
@@ -266,11 +263,15 @@ public class CreateFeatureViewFromTrainingDataset extends FeatureStoreMigration 
     }
   }
 
-  private List<FeaturegroupXAttr.SimplifiedDTO> makeFeatures(Integer featurestoreId, Integer[] featureIds)
-      throws MigrationException {
-    String getFeaturesSql = String.format(GET_FEATURES,
+  private String getFeaturesSql(Integer[] featureIds) {
+    return String.format(GET_FEATURES,
         Joiner.on(" OR ").join(
             Stream.of(featureIds).map(feature -> "`tdf`.`id` = " + feature).collect(Collectors.toList())));
+  }
+
+  private List<FeaturegroupXAttr.SimplifiedDTO> makeFeatures(Integer featurestoreId, Integer[] featureIds)
+      throws MigrationException {
+    String getFeaturesSql = getFeaturesSql(featureIds);
     try {
       PreparedStatement getFeaturesStatement = connection.prepareStatement(getFeaturesSql);
       ResultSet features = getFeaturesStatement.executeQuery();
@@ -330,9 +331,9 @@ public class CreateFeatureViewFromTrainingDataset extends FeatureStoreMigration 
           dfso.setOwner(fvPathHdfs, owner, group);
         }
         ExpatHdfsInode inode = inodeController.getInodeAtPath(fvPath.toString());
-        insertFeatureViewStatement.setLong(8, inode.getParentId());
-        insertFeatureViewStatement.setString(9, inode.getName());
-        insertFeatureViewStatement.setLong(10, inode.getPartitionId());
+        insertFeatureViewStatement.setLong(7, inode.getParentId());
+        insertFeatureViewStatement.setString(8, inode.getName());
+        insertFeatureViewStatement.setLong(9, inode.getPartitionId());
       }
     } catch (IOException e) {
       throw new MigrationException("HDFS operation failed.", e);
