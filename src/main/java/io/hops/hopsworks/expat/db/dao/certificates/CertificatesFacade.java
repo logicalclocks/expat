@@ -26,6 +26,9 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -37,6 +40,7 @@ public class CertificatesFacade {
       "UPDATE user_certs SET user_key_pwd=? WHERE projectname=? AND username=?";
   private static final String GET_USER_CERT =
       "SELECT * from user_certs WHERE username = ?";
+  private static final String INSERT_PKI_CERTIFICATE = "INSERT INTO pki_certificate VALUES(?, ?, ?, ?, ?, ?, ?)";
 
   public void updateCertPassword(Connection connection,
                                  ExpatCertificate expatCertificate, String newPassword, boolean dryRun)
@@ -74,5 +78,30 @@ public class CertificatesFacade {
     }
 
     return certificates;
+  }
+
+  public void insertPKICertificate(Connection connection, Integer ca, Long serialNumber, Integer status,
+      String subject, byte[] certificate, Instant notBefore, Instant notAfter, boolean dryRun) throws SQLException {
+    try (PreparedStatement stmt = connection.prepareStatement(INSERT_PKI_CERTIFICATE)) {
+      stmt.setInt(1, ca);
+      stmt.setLong(2, serialNumber);
+      stmt.setInt(3, status);
+      stmt.setString(4, subject);
+      stmt.setBytes(5, certificate);
+      stmt.setTimestamp(6, Timestamp.from(notBefore));
+      stmt.setTimestamp(7, Timestamp.from(notAfter));
+
+      if (dryRun) {
+        LOGGER.log(Level.INFO, "Executing: " + stmt);
+      } else {
+        stmt.execute();
+      }
+    }
+  }
+
+  public void truncatePKICertificates(Connection connection) throws SQLException {
+    try (Statement stmt = connection.createStatement()) {
+      stmt.executeQuery("TRUNCATE TABLE pki_certificate");
+    }
   }
 }
