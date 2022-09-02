@@ -27,7 +27,9 @@ import java.sql.Statement;
 
 public class SerialNumberFacade {
   private static final Logger LOGGER = LogManager.getLogger(SerialNumberFacade.class);
-  private static final String INIT_SERIAL_NUMBER = "INSERT INTO pki_serial_number VALUES(?, ?)";
+  private static final String TABLE_NAME = "pki_serial_number";
+  private static final String INIT_SERIAL_NUMBER = String.format("INSERT INTO %s VALUES(?, ?)", TABLE_NAME);
+  private static final String GET_SERIAL_NUMBER = String.format("SELECT * FROM %s WHERE type = ?", TABLE_NAME);
 
   private final Connection connection;
   private final boolean dryRun;
@@ -46,6 +48,18 @@ public class SerialNumberFacade {
         LOGGER.log(Level.INFO, "Executing " + stmt);
       } else {
         stmt.execute();
+      }
+    }
+  }
+
+  public boolean exists(String type) throws SQLException {
+    try (PreparedStatement stmt = connection.prepareStatement(GET_SERIAL_NUMBER)) {
+      stmt.setString(1, type);
+      if (dryRun) {
+        LOGGER.log(Level.INFO, "DryRun - Executing " + stmt);
+        return false;
+      } else {
+        return stmt.execute();
       }
     }
   }

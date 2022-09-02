@@ -215,6 +215,10 @@ public class MigrateToBouncyCastle implements MigrateStep {
   private void migrateKeyPair(String owner, Path path, String password) throws IOException, SQLException {
     LOGGER.log(Level.INFO, "Loading keypair for " + owner + " from " + path.toString());
     KeyPair keyPair = loadKeyPair(path, password);
+    if (keysFacade.exists(owner)) {
+      LOGGER.log(Level.INFO, "Key for " + owner + " has already been migrated. Skipping...");
+      return;
+    }
     LOGGER.log(Level.INFO, "Saving private key");
     keysFacade.insertKey(owner, 0, keyPair.getPrivate().getEncoded());
     LOGGER.log(Level.INFO, "Saving public key");
@@ -255,6 +259,10 @@ public class MigrateToBouncyCastle implements MigrateStep {
 
   private void migrateSerialNumber(String type, Path path) throws IOException, SQLException {
     Long sn = getSerialNumber(path);
+    if (serialNumberFacade.exists(type)) {
+      LOGGER.log(Level.INFO, "Serial number for " + type + " has already been migrated. Skipping...");
+      return;
+    }
     serialNumberFacade.initializeSerialNumber(type, sn);
     LOGGER.log(Level.INFO, "Migrated Serial Number for " + type + " with next number " + sn);
   }
@@ -314,6 +322,10 @@ public class MigrateToBouncyCastle implements MigrateStep {
       Date notBefore = certificate.getNotBefore();
       Date notAfter = certificate.getNotAfter();
 
+      if (certificatesFacade.exists(dbConnection, subject, dryRun)) {
+        LOGGER.log(Level.INFO, "Certificate for " + subject + " has already been migrated. Skipping...");
+        return;
+      }
       certificatesFacade.insertPKICertificate(
           dbConnection,
           ca,
@@ -350,6 +362,10 @@ public class MigrateToBouncyCastle implements MigrateStep {
     X509CRL crl = loadCRL(path);
     if (crl != null) {
       LOGGER.log(Level.INFO, "Migrating " + type + " CRL from " + path);
+      if (crlFacade.exists(type)) {
+        LOGGER.log(Level.INFO, "CRL for " + type + " has already been migrated. Skipping...");
+        return;
+      }
       crlFacade.insertCRL(type, crl.getEncoded());
     }
   }

@@ -27,7 +27,9 @@ import java.sql.Statement;
 
 public class KeysFacade {
   private static final Logger LOGGER = LogManager.getLogger(KeysFacade.class);
-  private static final String INSERT_KEY = "INSERT INTO pki_key VALUES(?, ?, ?)";
+  private static final String TABLE_NAME = "pki_key";
+  private static final String INSERT_KEY = String.format("INSERT INTO %s VALUES(?, ?, ?)", TABLE_NAME);
+  private static final String GET_KEY = String.format("SELECT * FROM %s WHERE owner = ?", TABLE_NAME);
   private final Connection connection;
   private final boolean dryRun;
 
@@ -46,6 +48,18 @@ public class KeysFacade {
         LOGGER.log(Level.INFO, "Executing " + stmt);
       } else {
         stmt.execute();
+      }
+    }
+  }
+
+  public boolean exists(String owner) throws SQLException {
+    try (PreparedStatement stmt = connection.prepareStatement(GET_KEY)) {
+      stmt.setString(1, owner);
+      if (dryRun) {
+        LOGGER.log(Level.INFO, "DryRun - Executing " + stmt);
+        return false;
+      } else {
+        return stmt.execute();
       }
     }
   }

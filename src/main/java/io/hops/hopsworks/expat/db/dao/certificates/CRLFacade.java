@@ -27,7 +27,9 @@ import java.sql.Statement;
 
 public class CRLFacade {
   private static final Logger LOGGER = LogManager.getLogger(CRLFacade.class);
-  private static final String INSERT_CRL = "INSERT INTO pki_crl VALUES(?, ?)";
+  private static final String TABLE_NAME = "pki_crl";
+  private static final String INSERT_CRL = String.format("INSERT INTO %s VALUES(?, ?)", TABLE_NAME);
+  private static final String GET_CRL = String.format("SELECT * FROM %s WHERE type = ?", TABLE_NAME);
 
   private final Connection connection;
   private final boolean dryRun;
@@ -46,6 +48,18 @@ public class CRLFacade {
         LOGGER.log(Level.INFO, "Executing: " + stmt);
       } else {
         stmt.execute();
+      }
+    }
+  }
+
+  public boolean exists(String type) throws SQLException {
+    try (PreparedStatement stmt = connection.prepareStatement(GET_CRL)) {
+      stmt.setString(1, type);
+      if (dryRun) {
+        LOGGER.log(Level.INFO, "DryRun - Executing " + stmt);
+        return false;
+      } else {
+        return stmt.execute();
       }
     }
   }

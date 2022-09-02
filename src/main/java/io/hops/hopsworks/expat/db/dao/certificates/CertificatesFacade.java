@@ -40,7 +40,10 @@ public class CertificatesFacade {
       "UPDATE user_certs SET user_key_pwd=? WHERE projectname=? AND username=?";
   private static final String GET_USER_CERT =
       "SELECT * from user_certs WHERE username = ?";
-  private static final String INSERT_PKI_CERTIFICATE = "INSERT INTO pki_certificate VALUES(?, ?, ?, ?, ?, ?, ?)";
+  private static final String PKI_TABLE_NAME = "pki_certificate";
+  private static final String INSERT_PKI_CERTIFICATE = String.format("INSERT INTO %s VALUES(?, ?, ?, ?, ?, ?," +
+    " ?)", PKI_TABLE_NAME);
+  private static final String GET_PKI_CERTIFICATE = String.format("SELECT * FROM %s WHERE subject = ?", PKI_TABLE_NAME);
 
   public void updateCertPassword(Connection connection,
                                  ExpatCertificate expatCertificate, String newPassword, boolean dryRun)
@@ -95,6 +98,18 @@ public class CertificatesFacade {
         LOGGER.log(Level.INFO, "Executing: " + stmt);
       } else {
         stmt.execute();
+      }
+    }
+  }
+
+  public boolean exists(Connection connection, String subject, boolean dryRun) throws SQLException {
+    try (PreparedStatement stmt = connection.prepareStatement(GET_PKI_CERTIFICATE)) {
+      stmt.setString(1, subject);
+      if (dryRun) {
+        LOGGER.log(Level.INFO, "DryRun - Executing " + stmt);
+        return false;
+      } else {
+        return stmt.execute();
       }
     }
   }
