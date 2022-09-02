@@ -100,6 +100,12 @@ public class MigrateToBouncyCastle implements MigrateStep {
       throw new MigrationException(msg, ex);
     }
 
+    if (!Paths.get("/srv/hops/certs-dir/private/ca.key.pem").toFile().exists()) {
+      LOGGER.log(Level.INFO, "ROOT CA private key does not exist. Skipping migration "
+          + MigrateToBouncyCastle.class.getName());
+      return;
+    }
+
     // Migrate CA Private keys
     LOGGER.log(Level.INFO, "Migrating Certificate Authorities key pairs");
     try {
