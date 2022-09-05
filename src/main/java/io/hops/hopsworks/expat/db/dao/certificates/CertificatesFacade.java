@@ -107,10 +107,12 @@ public class CertificatesFacade {
       stmt.setString(1, subject);
       if (dryRun) {
         LOGGER.log(Level.INFO, "DryRun - Executing " + stmt);
-        return false;
       } else {
-        return stmt.execute();
+        if (stmt.execute()) {
+          return stmt.getResultSet().next();
+        }
       }
+      return false;
     }
   }
 
