@@ -1,6 +1,6 @@
 /**
  * This file is part of Expat
- * Copyright (C) 2022, Logical Clocks AB. All rights reserved
+ * Copyright (C) 2022, Hopsworks AB. All rights reserved
  * <p>
  * Expat is free software: you can redistribute it and/or modify it under the terms of
  * the GNU Affero General Public License as published by the Free Software Foundation,
