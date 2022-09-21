@@ -60,7 +60,7 @@ public class CreateFeatureViewFromTrainingDataset extends FeatureStoreMigration 
           "INNER JOIN feature_group AS fg ON tdf.feature_group = fg.id " +
           "WHERE %s";
 
-  private final static String GET_ARRAY_FROM_TD = "SELECT a.id FROM %s AS a WHERE training_dataset = %s";
+  private final static String GET_ARRAY_FROM_TD = "SELECT a.id FROM %s AS a WHERE a.training_dataset = %s";
   private final static String SET_FEATURE_VIEW = "UPDATE %s SET feature_view_id = ? WHERE %s = ?";
   private final static String REMOVE_FEATURE_VIEW_FROM_TABLES = "UPDATE %s SET %s = null WHERE %s = ?";
   private final static String DELETE_FEATURE_VIEW = "DELETE FROM feature_view WHERE id = ?";
