@@ -251,6 +251,7 @@ public class CreateFeatureViewFromTrainingDataset extends FeatureStoreMigration 
       byte[] val = sw.toString().getBytes();
       if (val.length > 13500) {
         LOGGER.warn("xattr too large - skipping attaching features to featuregroup.");
+        sw = new StringWriter();
         FeatureViewXAttrDTO fvWithoutFeatures = new FeatureViewXAttrDTO(featurestoreId,
             description,
             createDate,
