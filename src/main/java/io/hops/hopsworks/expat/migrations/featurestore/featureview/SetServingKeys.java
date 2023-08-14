@@ -1,6 +1,7 @@
 package io.hops.hopsworks.expat.migrations.featurestore.featureview;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Lists;
 import io.hops.hopsworks.common.featurestore.featureview.ServingKeyDTO;
 import io.hops.hopsworks.expat.configuration.ExpatConf;
 import io.hops.hopsworks.expat.migrations.MigrationException;
@@ -70,6 +71,7 @@ public class SetServingKeys extends FeatureStoreMigration {
         connection.prepareStatement(INSERT_SERVING_KEY, Statement.RETURN_GENERATED_KEYS);
     int n = 0;
     int numServingKey = 0;
+    int failedUpdate = 0;
     while (featureViews.next()) {
       n += 1;
       List<ServingKeyDTO> servingKeyDTOS = null;
@@ -80,6 +82,11 @@ public class SetServingKeys extends FeatureStoreMigration {
             featureViews.getString("name"),
             featureViews.getInt("version")
         );
+        if (servingKeyDTOS.size() == 0) {
+          LOGGER.warn(String.format("No serving keys will be added to fv `%s`.", featureViews.getString("name")));
+          failedUpdate++;
+          continue;
+        }
       } catch (IOException e) {
         throw new MigrationException("Cannot get serving key from Hopsworks API.");
       }
@@ -108,6 +115,8 @@ public class SetServingKeys extends FeatureStoreMigration {
     if (!dryRun) {
       LOGGER.info(String.format("%d feature view have been updated with %d serving keys.", n, numServingKey));
     }
+    LOGGER.info(String.format("%d feature view will be updated but %d feature view will be failed to update.",
+        n - failedUpdate, failedUpdate));
   }
 
   @Override
@@ -154,8 +163,13 @@ public class SetServingKeys extends FeatureStoreMigration {
       if (status == 200) {
         return Arrays.asList(objectMapper.readValue(EntityUtils.toString(response.getEntity()), ServingKeyDTO[].class));
       } else {
-        throw new MigrationException(String.format("Cannot get serving key from fv name: %s version: %d: %s",
-            fvName, fvVersion, EntityUtils.toString(response.getEntity())));
+        String entity = EntityUtils.toString(response.getEntity());
+        if (entity.contains("Featuregroup wasn't found.")) {
+          return Lists.newArrayList();
+        } else {
+          throw new MigrationException(String.format("Cannot get serving key from fv name: %s version: %d: %s",
+              fvName, fvVersion, entity));
+        }
       }
     } catch (IOException e) {
       throw new MigrationException("Cannot get serving key from Hopsworks API: " + e.getMessage());
