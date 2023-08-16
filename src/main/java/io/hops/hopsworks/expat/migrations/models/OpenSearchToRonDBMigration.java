@@ -32,10 +32,12 @@ import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.ssl.SSLContextBuilder;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.security.GeneralSecurityException;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -88,14 +90,15 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
 
   @Override
   public void migrate() throws MigrationException {
+    //TODO make sure elastic does not limit number of returned responses
     try {
       setup();
       LOGGER.info("sanity check looking for file provenance index");
-      if(!ElasticClient.indexExists(httpClient, elastic, elasticUser, elasticPass, fileProvenanceIndex)) {
-        LOGGER.error(fileProvenanceIndex + " could not be found, ending migration...");
-      }
+      JSONObject fileProvIndices = ElasticClient.getIndicesByRegex(httpClient, elastic, elasticUser, elasticPass,
+        "*__file_prov");
+      LOGGER.info(fileProvIndices.toString());
 
-    } catch (SQLException | ConfigurationException | GeneralSecurityException | IOException e) {
+    } catch (SQLException | ConfigurationException | GeneralSecurityException | IOException | URISyntaxException e) {
       throw new MigrationException("error", e);
     } finally {
       try {
