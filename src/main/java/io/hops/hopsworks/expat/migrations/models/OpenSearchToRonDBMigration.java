@@ -41,14 +41,14 @@ import java.sql.Connection;
 import java.sql.SQLException;
 
 public class OpenSearchToRonDBMigration implements MigrateStep {
-  private final static Logger LOGGER = LoggerFactory.getLogger(io.hops.hopsworks.expat.migrations.projects.appprovenance.ReindexV1.class);
+  private final static Logger LOGGER = LoggerFactory.getLogger(OpenSearchToRonDBMigration.class);
 
   protected Connection connection;
   private CloseableHttpClient httpClient;
   private HttpHost elastic;
   private String elasticUser;
   private String elasticPass;
-  private String fileProvenanceIndex = "file_provenance";
+  private final String fileProvenanceIndex = "file_provenance";
 
   private void setup()
     throws SQLException, ConfigurationException, GeneralSecurityException {
