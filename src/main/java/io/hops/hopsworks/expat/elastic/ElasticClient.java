@@ -32,6 +32,7 @@ import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.util.EntityUtils;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -504,6 +505,66 @@ public class ElasticClient {
         LOGGER.info("Restore snapshot:{} from repo:{}", snapshotName, repoName);
       } else {
         throw new IllegalStateException("Could not restore snapshot:" + jsonResponse.getJSONObject("error"));
+      }
+    } finally {
+      if (response != null) {
+        response.close();
+      }
+    }
+  }
+
+  public static JSONArray getIndicesByRegex(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser,
+                                     String elasticPass, String indicesPattern)
+    throws URISyntaxException, IOException {
+    CloseableHttpResponse response = null;
+    try {
+      URIBuilder uriBuilder = new URIBuilder();
+      uriBuilder
+        .setPathSegments("_cat", "indices", indicesPattern)
+        .setParameter("format", "json");
+      HttpGet request = new HttpGet(uriBuilder.build());
+      request.addHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+      String encodedAuth = Base64.getEncoder().encodeToString((elasticUser + ":" + elasticPass).getBytes());
+      request.addHeader(HttpHeaders.AUTHORIZATION, "Basic " + encodedAuth);
+      response = httpClient.execute(elastic, request);
+      JSONArray jsonResponse = new JSONArray(EntityUtils.toString(response.getEntity()));
+      int status = response.getStatusLine().getStatusCode();
+      if (status == 200) {
+        LOGGER.info("Query elastic indices with pattern: {}", indicesPattern);
+        return jsonResponse;
+      } else {
+        throw new IllegalStateException("Could not query elastic indices:" + jsonResponse.toString(4));
+      }
+    } finally {
+      if (response != null) {
+        response.close();
+      }
+    }
+  }
+
+  public static JSONObject search(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser,
+                                            String elasticPass, String index, String body)
+    throws URISyntaxException, IOException {
+    CloseableHttpResponse response = null;
+    try {
+      URIBuilder uriBuilder = new URIBuilder();
+      uriBuilder
+        .setPathSegments(index, "_search")
+        .setParameter("format", "json");
+      HttpPost request = new HttpPost(uriBuilder.build());
+      request.addHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+      String encodedAuth = Base64.getEncoder().encodeToString((elasticUser + ":" + elasticPass).getBytes());
+      request.addHeader(HttpHeaders.AUTHORIZATION, "Basic " + encodedAuth);;
+      HttpEntity entity = new ByteArrayEntity(body.getBytes(StandardCharsets.UTF_8));
+      request.setEntity(entity);
+      response = httpClient.execute(elastic, request);
+      JSONObject jsonResponse = new JSONObject(EntityUtils.toString(response.getEntity()));
+      int status = response.getStatusLine().getStatusCode();
+      if (status == 200) {
+        LOGGER.info("Query elastic index: {}", index);
+        return jsonResponse;
+      } else {
+        throw new IllegalStateException("Could not query elastic indices:" + jsonResponse.toString(4));
       }
     } finally {
       if (response != null) {
