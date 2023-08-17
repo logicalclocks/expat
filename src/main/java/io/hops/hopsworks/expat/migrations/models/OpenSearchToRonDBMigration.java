@@ -119,7 +119,7 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
             ",\"adjust_pure_negative\":true,\"boost\":1.0}},{\"bool\":" +
             "{\"should\":[{\"term\":{\"ml_type\":{\"value\":\"MODEL\",\"boost\":1.0}}}]," +
             "\"adjust_pure_negative\":true,\"boost\":1.0}},{\"bool\":{\"should\":[{\"term\":{\"dataset_i_id\":" +
-            "{\"value\":\" " + modelDatasetInode.getId() +  "  \",\"boost\":1.0}}}]" +
+            "{\"value\":\"" + modelDatasetInode.getId() +"\",\"boost\":1.0}}}]" +
             ",\"adjust_pure_negative\":true,\"boost\":1.0}},{\"exists\":" +
             "{\"field\":\"xattr_prov.model_summary.value\",\"boost\":1.0}}]," +
             "\"adjust_pure_negative\":true,\"boost\":1.0}}}";
