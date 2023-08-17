@@ -525,6 +525,8 @@ public class ElasticClient {
       String encodedAuth = Base64.getEncoder().encodeToString((elasticUser + ":" + elasticPass).getBytes());
       request.addHeader(HttpHeaders.AUTHORIZATION, "Basic " + encodedAuth);
       response = httpClient.execute(elastic, request);
+      LOGGER.info(elastic.getSchemeName() + " " + elastic.getPort() + " " + elastic.getAddress().toString());
+      LOGGER.info(request.getURI().toString() + " " + request.getAllHeaders().toString());
       JSONObject jsonResponse = new JSONObject(EntityUtils.toString(response.getEntity()));
       int status = response.getStatusLine().getStatusCode();
       if (status == 200) {
