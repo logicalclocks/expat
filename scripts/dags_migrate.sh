@@ -18,8 +18,12 @@ if [ -d "$PROJECT_DAGS_DIR" ]; then
     if [ -f $DAG ] ; then
       if [[ "$DAG" == *.py ]] ; then
         echo "Found possible dag $DAG"
-        # Put the project to the dag `project` role with read and edit permissions
-        sed -i '/default_args = args,/a \ \ \ \ access_control = {\n \ \ \ \ \ \ \ "'"${PROJECT}"'": {"can_dag_read", "can_dag_edit"},\n \ \ \ \ },' $DAG
+        # to make it idempotent
+        grep "access_control" $DAG
+        if [ $? -ne 0 ]; then
+            # Put the project to the dag `project` role with read and edit permissions
+            sed -i '/default_args = args,/a \ \ \ \ access_control = {\n \ \ \ \ \ \ \ "'"${PROJECT}"'": {"can_dag_read", "can_dag_edit"},\n \ \ \ \ },' $DAG
+        fi
       fi
     fi
   done
