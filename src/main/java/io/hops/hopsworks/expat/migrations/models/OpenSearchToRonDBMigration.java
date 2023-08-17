@@ -32,6 +32,7 @@ import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.ssl.SSLContextBuilder;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,9 +94,12 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
     try {
       setup();
       LOGGER.info("sanity check looking for file provenance index");
-      JSONObject fileProvIndices = ElasticClient.getIndicesByRegex(httpClient, elastic, elasticUser, elasticPass,
+      JSONArray fileProvIndices = ElasticClient.getIndicesByRegex(httpClient, elastic, elasticUser, elasticPass,
         "*__file_prov");
       LOGGER.info(fileProvIndices.toString());
+      if (fileProvIndices.length() > 0) {
+        LOGGER.info("running migration");
+      }
 
     } catch (SQLException | ConfigurationException | GeneralSecurityException | IOException | URISyntaxException e) {
       throw new MigrationException("error", e);

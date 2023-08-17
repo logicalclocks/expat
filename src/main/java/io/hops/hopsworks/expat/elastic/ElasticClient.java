@@ -32,6 +32,7 @@ import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.util.EntityUtils;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -512,20 +513,21 @@ public class ElasticClient {
     }
   }
 
-  public static JSONObject getIndicesByRegex(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser,
+  public static JSONArray getIndicesByRegex(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser,
                                      String elasticPass, String indicesPattern)
     throws URISyntaxException, IOException {
     CloseableHttpResponse response = null;
     try {
       URIBuilder uriBuilder = new URIBuilder();
       uriBuilder
-        .setPathSegments("_cat", "indices", indicesPattern) ;
+        .setPathSegments("_cat", "indices", indicesPattern)
+        .setParameter("format", "json");
       HttpGet request = new HttpGet(uriBuilder.build());
       request.addHeader(HttpHeaders.CONTENT_TYPE, "application/json");
       String encodedAuth = Base64.getEncoder().encodeToString((elasticUser + ":" + elasticPass).getBytes());
       request.addHeader(HttpHeaders.AUTHORIZATION, "Basic " + encodedAuth);
       response = httpClient.execute(elastic, request);
-      JSONObject jsonResponse = new JSONObject(EntityUtils.toString(response.getEntity()));
+      JSONArray jsonResponse = new JSONArray(EntityUtils.toString(response.getEntity()));
       int status = response.getStatusLine().getStatusCode();
       if (status == 200) {
         LOGGER.info("Query elastic indices with pattern: {}", indicesPattern);
