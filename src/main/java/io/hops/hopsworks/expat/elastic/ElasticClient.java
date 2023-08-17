@@ -531,7 +531,7 @@ public class ElasticClient {
         LOGGER.info("Query elastic indices with pattern: {}", indicesPattern);
         return jsonResponse;
       } else {
-        throw new IllegalStateException("Could not query elastic indices:" + jsonResponse.getJSONObject("error"));
+        throw new IllegalStateException("Could not query elastic indices:" + jsonResponse.toString(4));
       }
     } finally {
       if (response != null) {
