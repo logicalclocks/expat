@@ -519,7 +519,7 @@ public class ElasticClient {
     try {
       URIBuilder uriBuilder = new URIBuilder();
       uriBuilder
-        .setPathSegments("_cat", "indicesPattern") ;
+        .setPathSegments("_cat", indicesPattern) ;
       HttpGet request = new HttpGet(uriBuilder.build());
       request.addHeader(HttpHeaders.CONTENT_TYPE, "application/json");
       String encodedAuth = Base64.getEncoder().encodeToString((elasticUser + ":" + elasticPass).getBytes());

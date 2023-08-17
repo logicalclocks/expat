@@ -50,7 +50,6 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
   private HttpHost elastic;
   private String elasticUser;
   private String elasticPass;
-  private final String fileProvenanceIndex = "file_provenance";
 
   private void setup()
     throws SQLException, ConfigurationException, GeneralSecurityException {
