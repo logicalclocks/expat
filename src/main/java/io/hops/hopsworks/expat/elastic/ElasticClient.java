@@ -519,18 +519,12 @@ public class ElasticClient {
     try {
       URIBuilder uriBuilder = new URIBuilder();
       uriBuilder
-        .setPathSegments("_cat", indicesPattern) ;
+        .setPathSegments("_cat", "indices", indicesPattern) ;
       HttpGet request = new HttpGet(uriBuilder.build());
       request.addHeader(HttpHeaders.CONTENT_TYPE, "application/json");
       String encodedAuth = Base64.getEncoder().encodeToString((elasticUser + ":" + elasticPass).getBytes());
       request.addHeader(HttpHeaders.AUTHORIZATION, "Basic " + encodedAuth);
       response = httpClient.execute(elastic, request);
-      LOGGER.info(elastic.toString());
-      LOGGER.info(elastic.toHostString());
-      LOGGER.info(elastic.toURI());
-      LOGGER.info(request.toString());
-      //LOGGER.info(elastic.getSchemeName() + " " + elastic.getPort() + " " + elastic.getAddress().toString());
-      //LOGGER.info(request.getURI().toString() + " " + request.getAllHeaders().toString());
       JSONObject jsonResponse = new JSONObject(EntityUtils.toString(response.getEntity()));
       int status = response.getStatusLine().getStatusCode();
       if (status == 200) {
