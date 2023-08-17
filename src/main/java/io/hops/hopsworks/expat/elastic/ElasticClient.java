@@ -541,6 +541,41 @@ public class ElasticClient {
       }
     }
   }
+
+  public static JSONArray search(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser,
+                                            String elasticPass, String index, String body)
+    throws URISyntaxException, IOException {
+    CloseableHttpResponse response = null;
+    try {
+      URIBuilder uriBuilder = new URIBuilder();
+      uriBuilder
+        .setPathSegments(index, "_search")
+        .setParameter("format", "json");
+      HttpPost request = new HttpPost(uriBuilder.build());
+      request.addHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+      String encodedAuth = Base64.getEncoder().encodeToString((elasticUser + ":" + elasticPass).getBytes());
+      request.addHeader(HttpHeaders.AUTHORIZATION, "Basic " + encodedAuth);;
+      HttpEntity entity = new ByteArrayEntity(body.getBytes(StandardCharsets.UTF_8));
+      request.setEntity(entity);
+      response = httpClient.execute(elastic, request);
+      JSONArray jsonResponse = new JSONArray(EntityUtils.toString(response.getEntity()));
+      int status = response.getStatusLine().getStatusCode();
+      if (status == 200) {
+        LOGGER.info("Query elastic index: {}", index);
+        return jsonResponse;
+      } else {
+        throw new IllegalStateException("Could not query elastic indices:" + jsonResponse.toString(4));
+      }
+    } finally {
+      if (response != null) {
+        response.close();
+      }
+    }
+  }
+
+
+  :14
+  curl -H 'Content-Type: application/json' -X POST -u admin:adminpw --insecure https://10.0.2.15:9200/297__file_prov/_search
   
   public static void deleteSnapshot(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser,
                                     String elasticPass, String repoName, String snapshotName)

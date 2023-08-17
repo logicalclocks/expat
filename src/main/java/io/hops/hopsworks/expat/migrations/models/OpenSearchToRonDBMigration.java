@@ -19,6 +19,8 @@ package io.hops.hopsworks.expat.migrations.models;
 import io.hops.hopsworks.expat.configuration.ConfigurationBuilder;
 import io.hops.hopsworks.expat.configuration.ExpatConf;
 import io.hops.hopsworks.expat.db.DbConnectionFactory;
+import io.hops.hopsworks.expat.db.dao.hdfs.inode.ExpatHdfsInode;
+import io.hops.hopsworks.expat.db.dao.hdfs.inode.ExpatInodeController;
 import io.hops.hopsworks.expat.elastic.ElasticClient;
 import io.hops.hopsworks.expat.migrations.MigrateStep;
 import io.hops.hopsworks.expat.migrations.MigrationException;
@@ -33,6 +35,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.json.JSONArray;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,6 +47,8 @@ import java.sql.SQLException;
 
 public class OpenSearchToRonDBMigration implements MigrateStep {
   private final static Logger LOGGER = LoggerFactory.getLogger(OpenSearchToRonDBMigration.class);
+
+  protected ExpatInodeController inodeController;
 
   protected Connection connection;
   private CloseableHttpClient httpClient;
@@ -76,6 +81,7 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
       .setSSLContext(new SSLContextBuilder().loadTrustMaterial((x509Certificates, s) -> true).build())
       .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)
       .build();
+    inodeController = new ExpatInodeController(this.connection);
   }
 
   private void close() throws SQLException, IOException {
@@ -92,12 +98,40 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
     //TODO make sure elastic does not limit number of returned responses
     try {
       setup();
-      LOGGER.info("sanity check looking for file provenance index");
+      LOGGER.info("Getting all file provenance indices");
       JSONArray fileProvIndices = ElasticClient.getIndicesByRegex(httpClient, elastic, elasticUser, elasticPass,
         "*__file_prov");
       LOGGER.info(fileProvIndices.toString());
       if (fileProvIndices.length() > 0) {
-        LOGGER.info("running migration");
+        LOGGER.info("Found {} file provenance indices to migrate", fileProvIndices.length());
+        for(int i = 0; i < fileProvIndices.length(); i++) {
+          JSONObject fileProvIndexObj = fileProvIndices.getJSONObject(i);
+          String fileProvIndexName = fileProvIndexObj.getString("index");
+          long projectInodeId = Long.parseLong(fileProvIndexName.substring(0, fileProvIndexName.indexOf("__")));
+
+          ExpatHdfsInode projectInode = inodeController.getInodeById(projectInodeId);
+          ExpatHdfsInode modelDatasetInode = inodeController.getInodeAtPath(
+            String.format("/Projects/{}/Models", projectInode.getName()));
+
+          String query = "{\"from\":0,\"size\":10000,\"query\":{\"bool\":{\"must\":[{\"term\":{\"entry_type\":" +
+            "{\"value\":\"state\",\"boost\":1.0}}},{\"bool\":{\"should\":[{\"term\":{\"project_i_id\":" +
+            "{\"value\":\"" + projectInode.getId() + "\",\"boost\":1.0}}}]" +
+            ",\"adjust_pure_negative\":true,\"boost\":1.0}},{\"bool\":" +
+            "{\"should\":[{\"term\":{\"ml_type\":{\"value\":\"MODEL\",\"boost\":1.0}}}]," +
+            "\"adjust_pure_negative\":true,\"boost\":1.0}},{\"bool\":{\"should\":[{\"term\":{\"dataset_i_id\":" +
+            "{\"value\":\" " + modelDatasetInode.getId() +  "  \",\"boost\":1.0}}}]" +
+            ",\"adjust_pure_negative\":true,\"boost\":1.0}},{\"exists\":" +
+            "{\"field\":\"xattr_prov.model_summary.value\",\"boost\":1.0}}]," +
+            "\"adjust_pure_negative\":true,\"boost\":1.0}}}";
+
+          JSONArray modelArr = ElasticClient.search(httpClient, elastic, elasticUser, elasticPass, fileProvIndexName,
+            query);
+
+          LOGGER.info("Found {} model versions to migrate", modelArr.length());
+
+
+        }
+
       }
 
     } catch (SQLException | ConfigurationException | GeneralSecurityException | IOException | URISyntaxException e) {
