@@ -572,10 +572,6 @@ public class ElasticClient {
       }
     }
   }
-
-
-  :14
-  curl -H 'Content-Type: application/json' -X POST -u admin:adminpw --insecure https://10.0.2.15:9200/297__file_prov/_search
   
   public static void deleteSnapshot(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser,
                                     String elasticPass, String repoName, String snapshotName)
