@@ -25,7 +25,7 @@ import java.util.List;
 
 public class ExpatModelFacade extends ExpatAbstractFacade<ExpatModel> {
   private static final String FIND_BY_PROJECT_AND_NAME = "SELECT * FROM hopsworks.model " +
-    "WHERE project_id ? AND name = ?";
+    "WHERE project_id = ? AND name = ?";
   private Connection connection;
   protected ExpatModelFacade(Class<ExpatModel> entityClass) {
     super(entityClass);
@@ -43,12 +43,12 @@ public class ExpatModelFacade extends ExpatAbstractFacade<ExpatModel> {
 
   @Override
   public String findAllQuery() {
-    return "SELECT * FROM hops.hdfs_groups";
+    return "SELECT * FROM hopsworks.model";
   }
 
   @Override
   public String findByIdQuery() {
-    return "SELECT * FROM hops.hdfs_groups WHERE id = ?";
+    return "SELECT * FROM hopsworks.model WHERE id = ?";
   }
 
   public ExpatModel findByProjectAndName(Integer projectId, String name)
