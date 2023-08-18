@@ -33,7 +33,6 @@ public class ExpatProject extends ExpatAbstractEntity<ExpatProject> {
   private Integer kafkaMaxNumTopics;
   private Date lastQuotaUpdate;
   private String dockerImage;
-  private Boolean conda = false;
   
   public ExpatProject() {
   }
@@ -118,14 +117,6 @@ public class ExpatProject extends ExpatAbstractEntity<ExpatProject> {
     this.dockerImage = dockerImage;
   }
   
-  public Boolean getConda() {
-    return conda;
-  }
-  
-  public void setConda(Boolean conda) {
-    this.conda = conda;
-  }
-  
   @Override
   public ExpatProject getEntity(ResultSet resultSet) throws SQLException {
     this.id = resultSet.getInt("id");
@@ -138,7 +129,6 @@ public class ExpatProject extends ExpatAbstractEntity<ExpatProject> {
     this.kafkaMaxNumTopics = resultSet.getInt("kafka_max_num_topics");
     this.lastQuotaUpdate = resultSet.getDate("last_quota_update");
     this.dockerImage = resultSet.getString("docker_image");
-    this.conda = resultSet.getBoolean("conda");
     return this;
   }
   
@@ -155,7 +145,6 @@ public class ExpatProject extends ExpatAbstractEntity<ExpatProject> {
       ", kafkaMaxNumTopics=" + kafkaMaxNumTopics +
       ", lastQuotaUpdate=" + lastQuotaUpdate +
       ", dockerImage='" + dockerImage + '\'' +
-      ", conda=" + conda +
       '}';
   }
 }
