@@ -542,7 +542,7 @@ public class ElasticClient {
     }
   }
 
-  public static JSONArray search(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser,
+  public static JSONObject search(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser,
                                             String elasticPass, String index, String body)
     throws URISyntaxException, IOException {
     CloseableHttpResponse response = null;
@@ -558,7 +558,7 @@ public class ElasticClient {
       HttpEntity entity = new ByteArrayEntity(body.getBytes(StandardCharsets.UTF_8));
       request.setEntity(entity);
       response = httpClient.execute(elastic, request);
-      JSONArray jsonResponse = new JSONArray(EntityUtils.toString(response.getEntity()));
+      JSONObject jsonResponse = new JSONObject(EntityUtils.toString(response.getEntity()));
       int status = response.getStatusLine().getStatusCode();
       if (status == 200) {
         LOGGER.info("Query elastic index: {}", index);

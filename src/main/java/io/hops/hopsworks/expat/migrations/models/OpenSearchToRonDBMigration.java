@@ -21,6 +21,10 @@ import io.hops.hopsworks.expat.configuration.ExpatConf;
 import io.hops.hopsworks.expat.db.DbConnectionFactory;
 import io.hops.hopsworks.expat.db.dao.hdfs.inode.ExpatHdfsInode;
 import io.hops.hopsworks.expat.db.dao.hdfs.inode.ExpatInodeController;
+import io.hops.hopsworks.expat.db.dao.models.ExpatModel;
+import io.hops.hopsworks.expat.db.dao.models.ExpatModelsController;
+import io.hops.hopsworks.expat.db.dao.project.ExpatProject;
+import io.hops.hopsworks.expat.db.dao.project.ExpatProjectFacade;
 import io.hops.hopsworks.expat.elastic.ElasticClient;
 import io.hops.hopsworks.expat.migrations.MigrateStep;
 import io.hops.hopsworks.expat.migrations.MigrationException;
@@ -48,7 +52,9 @@ import java.sql.SQLException;
 public class OpenSearchToRonDBMigration implements MigrateStep {
   private final static Logger LOGGER = LoggerFactory.getLogger(OpenSearchToRonDBMigration.class);
 
-  protected ExpatInodeController inodeController;
+  protected ExpatModelsController expatModelsController;
+  protected ExpatInodeController expatInodeController;
+  protected ExpatProjectFacade expatProjectFacade;
 
   protected Connection connection;
   private CloseableHttpClient httpClient;
@@ -81,7 +87,9 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
       .setSSLContext(new SSLContextBuilder().loadTrustMaterial((x509Certificates, s) -> true).build())
       .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)
       .build();
-    inodeController = new ExpatInodeController(this.connection);
+    this.expatModelsController = new ExpatModelsController(this.connection);
+    this.expatInodeController = new ExpatInodeController(this.connection);
+    this.expatProjectFacade = new ExpatProjectFacade(ExpatProject.class, this.connection);
   }
 
   private void close() throws SQLException, IOException {
@@ -109,8 +117,8 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
           String fileProvIndexName = fileProvIndexObj.getString("index");
           long projectInodeId = Long.parseLong(fileProvIndexName.substring(0, fileProvIndexName.indexOf("__")));
 
-          ExpatHdfsInode projectInode = inodeController.getInodeById(projectInodeId);
-          ExpatHdfsInode modelDatasetInode = inodeController.getInodeAtPath(
+          ExpatHdfsInode projectInode = expatInodeController.getInodeById(projectInodeId);
+          ExpatHdfsInode modelDatasetInode = expatInodeController.getInodeAtPath(
             String.format("/Projects/%s/Models", projectInode.getName()));
 
           String query = "{\"from\":0,\"size\":10000,\"query\":{\"bool\":{\"must\":[{\"term\":{\"entry_type\":" +
@@ -124,17 +132,33 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
             "{\"field\":\"xattr_prov.model_summary.value\",\"boost\":1.0}}]," +
             "\"adjust_pure_negative\":true,\"boost\":1.0}}}";
 
-          JSONArray modelArr = ElasticClient.search(httpClient, elastic, elasticUser, elasticPass, fileProvIndexName,
+          JSONObject resp = ElasticClient.search(httpClient, elastic, elasticUser, elasticPass, fileProvIndexName,
             query);
 
-          LOGGER.info("Found {} model versions to migrate", modelArr.length());
+          JSONArray modelHits = resp.getJSONObject("hits").getJSONArray("hits");
+          if(modelHits.length() > 0) {
+            LOGGER.info("Migrating {} model versions for project {}", modelHits.length(), projectInode.getName());
+            for(int y = 0; y < modelHits.length(); y++) {
+              JSONObject modelHit = modelHits.getJSONObject(y);
+              JSONObject source = modelHit.getJSONObject("_source");
+              JSONObject xattrProv = source.getJSONObject("xattr_prov");
+              JSONObject modelSummary = xattrProv.getJSONObject("model_summary");
+              JSONObject value = modelSummary.getJSONObject("value");
+
+              ExpatProject expatProject = expatProjectFacade.findByProjectName(projectInode.getName());
+
+              ExpatModel expatModel = expatModelsController.getByProjectAndName(expatProject.getId(),
+                expatProject.getName());
+            }
 
 
+          } else {
+            LOGGER.info("Found no model versions to migrate for project {}", projectInode.getName());
+          }
         }
-
       }
-
-    } catch (SQLException | ConfigurationException | GeneralSecurityException | IOException | URISyntaxException e) {
+    } catch (SQLException | ConfigurationException | GeneralSecurityException | IOException | URISyntaxException |
+             IllegalAccessException | InstantiationException e) {
       throw new MigrationException("error", e);
     } finally {
       try {

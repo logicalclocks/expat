@@ -14,58 +14,53 @@
  * this program. If not, see <https://www.gnu.org/licenses/>.
  *
  */
-package io.hops.hopsworks.expat.db.dao.project;
+package io.hops.hopsworks.expat.db.dao.models;
 
-import io.hops.hopsworks.expat.db.DbConnectionFactory;
 import io.hops.hopsworks.expat.db.dao.ExpatAbstractFacade;
-import io.hops.hopsworks.expat.db.dao.models.ExpatModel;
-import org.apache.commons.configuration2.ex.ConfigurationException;
 
 import java.sql.Connection;
 import java.sql.JDBCType;
 import java.sql.SQLException;
 import java.util.List;
 
-public class ExpatProjectFacade extends ExpatAbstractFacade<ExpatProject> {
+public class ExpatModelFacade extends ExpatAbstractFacade<ExpatModel> {
+  private static final String FIND_BY_PROJECT_AND_NAME = "SELECT * FROM hopsworks.model " +
+    "WHERE project_id ? AND name = ?";
   private Connection connection;
-
-  private static final String FIND_BY_NAME = "SELECT * FROM hopsworks.project WHERE projectname = ?";
-  
-  public ExpatProjectFacade(Class<ExpatProject> entityClass) throws SQLException, ConfigurationException {
+  protected ExpatModelFacade(Class<ExpatModel> entityClass) {
     super(entityClass);
-    this.connection = DbConnectionFactory.getConnection();
   }
-  
-  public ExpatProjectFacade(Class<ExpatProject> entityClass, Connection connection) {
+
+  public ExpatModelFacade(Class<ExpatModel> entityClass, Connection connection) {
     super(entityClass);
     this.connection = connection;
   }
-  
+
   @Override
   public Connection getConnection() {
     return this.connection;
   }
-  
+
   @Override
   public String findAllQuery() {
-    return "SELECT * FROM project";
-  }
-  
-  @Override
-  public String findByIdQuery() {
-    return "SELECT * FROM project WHERE id = ?";
+    return "SELECT * FROM hops.hdfs_groups";
   }
 
-  public ExpatProject findByProjectName(String name)
+  @Override
+  public String findByIdQuery() {
+    return "SELECT * FROM hops.hdfs_groups WHERE id = ?";
+  }
+
+  public ExpatModel findByProjectAndName(Integer projectId, String name)
     throws IllegalAccessException, SQLException, InstantiationException {
-    List<ExpatProject> projectList = this.findByQuery(FIND_BY_NAME, new Object[]{name},
+    List<ExpatModel> hdfsGroupList = this.findByQuery(FIND_BY_PROJECT_AND_NAME, new Object[]{projectId, name},
       new JDBCType[]{JDBCType.INTEGER, JDBCType.VARCHAR});
-    if (projectList.isEmpty()) {
+    if (hdfsGroupList.isEmpty()) {
       return null;
     }
-    if (projectList.size() > 1) {
+    if (hdfsGroupList.size() > 1) {
       throw new IllegalStateException("More than one results found");
     }
-    return projectList.get(0);
+    return hdfsGroupList.get(0);
   }
 }
