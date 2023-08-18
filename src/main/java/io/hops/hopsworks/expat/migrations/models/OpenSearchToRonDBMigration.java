@@ -144,17 +144,17 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
               JSONObject xattrProv = source.getJSONObject("xattr_prov");
               JSONObject modelSummary = xattrProv.getJSONObject("model_summary");
               JSONObject value = modelSummary.getJSONObject("value");
+              String modelName = value.getString("name");
 
               ExpatProject expatProject = expatProjectFacade.findByProjectName(projectInode.getName());
 
-              ExpatModel expatModel = expatModelsController.getByProjectAndName(expatProject.getId(),
-                value.getString("name"));
+              ExpatModel expatModel = expatModelsController.getByProjectAndName(expatProject.getId(), modelName);
               if(expatModel == null) {
                 LOGGER.info("Could not find model ");
+                expatModel = expatModelsController.insertModel(connection, modelName, expatProject.getId(),
+                  false);
               }
             }
-
-
           } else {
             LOGGER.info("Found no model versions to migrate for project {}", projectInode.getName());
           }

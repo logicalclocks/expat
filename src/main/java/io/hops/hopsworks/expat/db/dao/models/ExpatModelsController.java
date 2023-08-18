@@ -20,4 +20,9 @@ public class ExpatModelsController {
     IllegalAccessException, InstantiationException {
     return modelFacade.findByProjectAndName(projectId, name);
   }
+
+  public ExpatModel insertModel(Connection connection, String name, Integer projectId, boolean dryRun)
+    throws SQLException, IllegalAccessException, InstantiationException {
+    return modelFacade.insertModel(connection, name, projectId, dryRun);
+  }
 }
