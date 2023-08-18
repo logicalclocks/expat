@@ -148,7 +148,10 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
               ExpatProject expatProject = expatProjectFacade.findByProjectName(projectInode.getName());
 
               ExpatModel expatModel = expatModelsController.getByProjectAndName(expatProject.getId(),
-                expatProject.getName());
+                value.getString("name"));
+              if(expatModel == null) {
+                LOGGER.info("Could not find model ");
+              }
             }
 
 
