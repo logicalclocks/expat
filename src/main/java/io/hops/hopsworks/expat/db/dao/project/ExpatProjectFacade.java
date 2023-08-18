@@ -58,7 +58,7 @@ public class ExpatProjectFacade extends ExpatAbstractFacade<ExpatProject> {
   public ExpatProject findByProjectName(String name)
     throws IllegalAccessException, SQLException, InstantiationException {
     List<ExpatProject> projectList = this.findByQuery(FIND_BY_NAME, new Object[]{name},
-      new JDBCType[]{JDBCType.INTEGER, JDBCType.VARCHAR});
+      new JDBCType[]{JDBCType.VARCHAR});
     if (projectList.isEmpty()) {
       return null;
     }
