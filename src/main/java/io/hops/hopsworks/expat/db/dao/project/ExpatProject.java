@@ -28,7 +28,7 @@ public class ExpatProject extends ExpatAbstractEntity<ExpatProject> {
   private String owner;
   private Date created;
   private String paymentType;
-  private String pythonVersion;
+  private Integer pythonEnvId;
   private String description;
   private Integer kafkaMaxNumTopics;
   private Date lastQuotaUpdate;
@@ -78,12 +78,12 @@ public class ExpatProject extends ExpatAbstractEntity<ExpatProject> {
     this.paymentType = paymentType;
   }
   
-  public String getPythonVersion() {
-    return pythonVersion;
+  public Integer getPythonEnvId() {
+    return pythonEnvId;
   }
   
-  public void setPythonVersion(String pythonVersion) {
-    this.pythonVersion = pythonVersion;
+  public void setPythonEnvId(Integer pythonEnvId) {
+    this.pythonEnvId = pythonEnvId;
   }
   
   public String getDescription() {
@@ -133,7 +133,7 @@ public class ExpatProject extends ExpatAbstractEntity<ExpatProject> {
     this.owner = resultSet.getString("username");
     this.created = resultSet.getDate("created");
     this.paymentType = resultSet.getString("payment_type");
-    this.pythonVersion = resultSet.getString("python_version");
+    this.pythonEnvId = resultSet.getInt("python_env_id");
     this.description = resultSet.getString("description");
     this.kafkaMaxNumTopics = resultSet.getInt("kafka_max_num_topics");
     this.lastQuotaUpdate = resultSet.getDate("last_quota_update");
@@ -150,7 +150,7 @@ public class ExpatProject extends ExpatAbstractEntity<ExpatProject> {
       ", owner='" + owner + '\'' +
       ", created=" + created +
       ", paymentType='" + paymentType + '\'' +
-      ", pythonVersion='" + pythonVersion + '\'' +
+      ", pythonEnvId='" + pythonEnvId + '\'' +
       ", description='" + description + '\'' +
       ", kafkaMaxNumTopics=" + kafkaMaxNumTopics +
       ", lastQuotaUpdate=" + lastQuotaUpdate +
