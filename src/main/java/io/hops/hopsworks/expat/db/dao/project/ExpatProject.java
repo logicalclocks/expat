@@ -27,20 +27,13 @@ public class ExpatProject extends ExpatAbstractEntity<ExpatProject> {
   private String name;
   private String owner;
   private Date created;
-  private Date retentionPeriod;
-  private Boolean deleted;
   private String paymentType;
   private String pythonVersion;
   private String description;
   private Integer kafkaMaxNumTopics;
   private Date lastQuotaUpdate;
   private String dockerImage;
-  private Long inodePId;
-  private String inodeName;
-  private Long partitionId;
   private Boolean conda = false;
-  private Boolean archived = false;
-  private Boolean logs = false;
   
   public ExpatProject() {
   }
@@ -75,22 +68,6 @@ public class ExpatProject extends ExpatAbstractEntity<ExpatProject> {
   
   public void setCreated(Date created) {
     this.created = created;
-  }
-  
-  public Date getRetentionPeriod() {
-    return retentionPeriod;
-  }
-  
-  public void setRetentionPeriod(Date retentionPeriod) {
-    this.retentionPeriod = retentionPeriod;
-  }
-  
-  public Boolean getDeleted() {
-    return deleted;
-  }
-  
-  public void setDeleted(Boolean deleted) {
-    this.deleted = deleted;
   }
   
   public String getPaymentType() {
@@ -141,30 +118,6 @@ public class ExpatProject extends ExpatAbstractEntity<ExpatProject> {
     this.dockerImage = dockerImage;
   }
   
-  public Long getInodePId() {
-    return inodePId;
-  }
-  
-  public void setInodePId(Long inodePId) {
-    this.inodePId = inodePId;
-  }
-  
-  public String getInodeName() {
-    return inodeName;
-  }
-  
-  public void setInodeName(String inodeName) {
-    this.inodeName = inodeName;
-  }
-  
-  public Long getPartitionId() {
-    return partitionId;
-  }
-  
-  public void setPartitionId(Long partitionId) {
-    this.partitionId = partitionId;
-  }
-  
   public Boolean getConda() {
     return conda;
   }
@@ -173,42 +126,19 @@ public class ExpatProject extends ExpatAbstractEntity<ExpatProject> {
     this.conda = conda;
   }
   
-  public Boolean getArchived() {
-    return archived;
-  }
-  
-  public void setArchived(Boolean archived) {
-    this.archived = archived;
-  }
-  
-  public Boolean getLogs() {
-    return logs;
-  }
-  
-  public void setLogs(Boolean logs) {
-    this.logs = logs;
-  }
-  
   @Override
   public ExpatProject getEntity(ResultSet resultSet) throws SQLException {
     this.id = resultSet.getInt("id");
     this.name = resultSet.getString("projectname");
     this.owner = resultSet.getString("username");
     this.created = resultSet.getDate("created");
-    this.retentionPeriod = resultSet.getDate("retention_period");
-    this.deleted = resultSet.getBoolean("deleted");
     this.paymentType = resultSet.getString("payment_type");
     this.pythonVersion = resultSet.getString("python_version");
     this.description = resultSet.getString("description");
     this.kafkaMaxNumTopics = resultSet.getInt("kafka_max_num_topics");
     this.lastQuotaUpdate = resultSet.getDate("last_quota_update");
     this.dockerImage = resultSet.getString("docker_image");
-    this.inodePId = resultSet.getLong("inode_pid");
-    this.inodeName = resultSet.getString("inode_name");
-    this.partitionId = resultSet.getLong("partition_id");
     this.conda = resultSet.getBoolean("conda");
-    this.archived = resultSet.getBoolean("archived");
-    this.logs = resultSet.getBoolean("logs");
     return this;
   }
   
@@ -219,20 +149,13 @@ public class ExpatProject extends ExpatAbstractEntity<ExpatProject> {
       ", name='" + name + '\'' +
       ", owner='" + owner + '\'' +
       ", created=" + created +
-      ", retentionPeriod=" + retentionPeriod +
-      ", deleted=" + deleted +
       ", paymentType='" + paymentType + '\'' +
       ", pythonVersion='" + pythonVersion + '\'' +
       ", description='" + description + '\'' +
       ", kafkaMaxNumTopics=" + kafkaMaxNumTopics +
       ", lastQuotaUpdate=" + lastQuotaUpdate +
       ", dockerImage='" + dockerImage + '\'' +
-      ", inodePId=" + inodePId +
-      ", inodeName='" + inodeName + '\'' +
-      ", partitionId=" + partitionId +
       ", conda=" + conda +
-      ", archived=" + archived +
-      ", logs=" + logs +
       '}';
   }
 }
