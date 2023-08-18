@@ -18,7 +18,6 @@ package io.hops.hopsworks.expat.db.dao.project;
 
 import io.hops.hopsworks.expat.db.DbConnectionFactory;
 import io.hops.hopsworks.expat.db.dao.ExpatAbstractFacade;
-import io.hops.hopsworks.expat.db.dao.models.ExpatModel;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 
 import java.sql.Connection;
