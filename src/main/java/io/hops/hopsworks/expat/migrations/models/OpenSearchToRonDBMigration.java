@@ -22,6 +22,7 @@ import io.hops.hopsworks.expat.db.DbConnectionFactory;
 import io.hops.hopsworks.expat.db.dao.hdfs.inode.ExpatHdfsInode;
 import io.hops.hopsworks.expat.db.dao.hdfs.inode.ExpatInodeController;
 import io.hops.hopsworks.expat.db.dao.models.ExpatModel;
+import io.hops.hopsworks.expat.db.dao.models.ExpatModelVersion;
 import io.hops.hopsworks.expat.db.dao.models.ExpatModelsController;
 import io.hops.hopsworks.expat.db.dao.project.ExpatProject;
 import io.hops.hopsworks.expat.db.dao.project.ExpatProjectFacade;
@@ -154,6 +155,8 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
                 expatModel = expatModelsController.insertModel(connection, modelName, expatProject.getId(),
                   false);
               }
+              ExpatModelVersion expatModelVersion = expatModelsController.insertModelVersion(connection,
+                expatModel.getId())
             }
           } else {
             LOGGER.info("Found no model versions to migrate for project {}", projectInode.getName());
