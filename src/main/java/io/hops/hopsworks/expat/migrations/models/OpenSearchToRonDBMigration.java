@@ -170,6 +170,7 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
               ExpatModelVersion expatModelVersion = expatModelsController.insertModelVersion(connection,
                 expatModel.getId(), version, userFullName, created, description, metrics, program,
                 framework, environment, experimentId, experimentProjectName, modelRegistryId, false);
+              LOGGER.info(expatModelVersion.getVersion().toString());
             }
           } else {
             LOGGER.info("Found no model versions to migrate for project {}", projectInode.getName());

@@ -31,7 +31,7 @@ public class ExpatModelVersionFacade extends ExpatAbstractFacade<ExpatModelVersi
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ExpatModelVersionFacade.class);
   private static final String FIND_BY_MODEL_ID_AND_VERSION = "SELECT * FROM hopsworks.model_version " +
-    "WHERE project_id = ? AND name = ?";
+    "WHERE model_id = ? AND version = ?";
 
   private static final String INSERT_MODEL_VERSION = String.format("INSERT IGNORE INTO %s " +
       "(model_id,version,user_full_name,created,description,metrics,program,framework,environment,experiment_id" +
