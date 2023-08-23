@@ -22,6 +22,7 @@ import io.hops.hopsworks.expat.db.DbConnectionFactory;
 import io.hops.hopsworks.expat.db.dao.hdfs.inode.ExpatHdfsInode;
 import io.hops.hopsworks.expat.db.dao.hdfs.inode.ExpatInodeController;
 import io.hops.hopsworks.expat.db.dao.models.ExpatModel;
+import io.hops.hopsworks.expat.db.dao.models.ExpatModelVersion;
 import io.hops.hopsworks.expat.db.dao.models.ExpatModelsController;
 import io.hops.hopsworks.expat.db.dao.project.ExpatProject;
 import io.hops.hopsworks.expat.db.dao.project.ExpatProjectFacade;
@@ -47,6 +48,7 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.security.GeneralSecurityException;
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.SQLException;
 
 public class OpenSearchToRonDBMigration implements MigrateStep {
@@ -145,6 +147,17 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
               JSONObject modelSummary = xattrProv.getJSONObject("model_summary");
               JSONObject value = modelSummary.getJSONObject("value");
               String modelName = value.getString("name");
+              Integer version = value.getInt("version");
+              String userFullName = value.getString("userFullName");
+              Date created = new Date(value.getInt("created"));
+              String description = value.getString("description");
+              String metrics = value.getJSONObject("metrics").toString();
+              String program = value.getString("program");
+              String framework = value.getString("framework");
+              String environment = value.getString("environment");
+              String experimentId = value.getString("experimentId");
+              String experimentProjectName = value.getString("experimentProjectName");
+              String modelRegistryId = value.getString("modelRegistryId");
 
               ExpatProject expatProject = expatProjectFacade.findByProjectName(projectInode.getName());
 
@@ -154,7 +167,9 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
                 expatModel = expatModelsController.insertModel(connection, modelName, expatProject.getId(),
                   false);
               }
-              //ExpatModelVersion expatModelVersion = expatModelsController.insertModelVersion(connection,);
+              ExpatModelVersion expatModelVersion = expatModelsController.insertModelVersion(connection,
+                expatModel.getId(), version, userFullName, created, description, metrics, program,
+                framework, environment, experimentId, experimentProjectName, modelRegistryId, false);
             }
           } else {
             LOGGER.info("Found no model versions to migrate for project {}", projectInode.getName());
