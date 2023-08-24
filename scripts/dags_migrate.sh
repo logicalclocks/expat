@@ -16,11 +16,11 @@ if [ -d "$PROJECT_DAGS_DIR" ]; then
   echo "Copying dags for project: $PROJECT"
   for DAG in "$PROJECT_DAGS_DIR"/*; do
     if [ -f $DAG ] ; then
-      if [[ "$DAG" == *.py ]] ; then
+      if [[ "$DAG" == *.py ]]; then
         echo "Found possible dag $DAG"
         # to make it idempotent
-        grep "access_control" $DAG
-        if [ $? -ne 0 ]; then
+        if ! grep -q "access_control" "$DAG"; then
+            echo "Writing access dag access_control rule"
             # Put the project to the dag `project` role with read and edit permissions
             sed -i '/default_args = args,/a \ \ \ \ access_control = {\n \ \ \ \ \ \ \ "'"${PROJECT}"'": {"can_dag_read", "can_dag_edit"},\n \ \ \ \ },' $DAG
         fi
@@ -29,7 +29,8 @@ if [ -d "$PROJECT_DAGS_DIR" ]; then
   done
 
   # Copy all the file in the project dags to hopsfs
-  su "$HDFS_SUPERUSER" -c "${HADOOP_HOME}/bin/hdfs dfs -copyFromLocal -f ${PROJECT_DAGS_DIR}/* /Projects/${PROJECT}/Airflow && ${HADOOP_HOME}/bin/hdfs dfs -chown -R ${PROJECT_USER}:${PROJECT_USER} /Projects/${PROJECT}/Airflow/*"
+  ${HADOOP_HOME}/bin/hdfs dfs -copyFromLocal -f ${PROJECT_DAGS_DIR}/* /Projects/${PROJECT}/Airflow
+  ${HADOOP_HOME}/bin/hdfs dfs -chown -R ${PROJECT_USER}:${PROJECT}__Airflow /Projects/${PROJECT}/Airflow/*
   exit 0
 else
   echo "Dags directory for project: $PROJECT, was not configured. So it does not have any dags."
