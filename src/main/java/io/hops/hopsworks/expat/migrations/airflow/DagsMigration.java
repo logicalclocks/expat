@@ -2,6 +2,9 @@ package io.hops.hopsworks.expat.migrations.airflow;
 
 import io.hops.hopsworks.common.hdfs.DistributedFileSystemOps;
 import io.hops.hopsworks.common.hdfs.FsPermissions;
+import io.hops.hopsworks.common.provenance.core.Provenance;
+import io.hops.hopsworks.common.provenance.core.dto.ProvCoreDTO;
+import io.hops.hopsworks.common.provenance.core.dto.ProvTypeDTO;
 import io.hops.hopsworks.common.util.ProcessDescriptor;
 import io.hops.hopsworks.common.util.ProcessResult;
 import io.hops.hopsworks.expat.configuration.ConfigurationBuilder;
@@ -13,6 +16,9 @@ import io.hops.hopsworks.expat.migrations.MigrateStep;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
 import io.hops.hopsworks.expat.migrations.projects.util.HopsClient;
+import io.hops.hopsworks.expat.migrations.projects.util.XAttrException;
+import io.hops.hopsworks.expat.migrations.projects.util.XAttrHelper;
+import io.hops.hopsworks.persistence.entity.hdfs.inode.Inode;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
@@ -26,15 +32,24 @@ import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.eclipse.persistence.jaxb.JAXBContextFactory;
+import org.eclipse.persistence.jaxb.MarshallerProperties;
+import org.eclipse.persistence.oxm.MediaType;
 
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.JAXBException;
+import javax.xml.bind.Marshaller;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class DagsMigration implements MigrateStep {
@@ -120,33 +135,37 @@ public class DagsMigration implements MigrateStep {
     }
   }
 
-
   private void createAirflowDataset(Integer projectId, String projectName, String hdfsUsername)
       throws IOException, SQLException, MigrationException {
-    Path airflowDatasetPath = new Path( "hdfs:///Projects/" + projectName + "/"  + AIRFLOW_DATASET_NAME);
-    boolean exists = dfso.exists(airflowDatasetPath);
+    Path airflowDatasetPath = getAirflowDatasetPath(projectName);
     if (!dfso.exists(airflowDatasetPath) && !dryRun) {
-      LOGGER.info("Creating dataset Airflow in " + projectName);
-      FsPermission fsPermission = new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.NONE, false);
-      dfso.mkdir(airflowDatasetPath, fsPermission);
-      createAirflowDataset(projectId, airflowDatasetPath);
-      String datasetGroup = getAirflowDatasetGroup(projectName);
-      dfso.setOwner(airflowDatasetPath, hdfsUsername, datasetGroup);
-      String datasetAclGroup = getAirflowDatasetAclGroup(projectName);
-      addGroup(datasetAclGroup);
-      addUserToGroup(hdfsUsername, datasetAclGroup);
-      dfso.setPermission(airflowDatasetPath, getDefaultDatasetAcl(datasetAclGroup));
-      addProjectMembersToAirflowDataset(projectId, projectName);
-      // set the airflow acls
-      dfso.getFilesystem().modifyAclEntries(airflowDatasetPath, getAirflowAcls());
-      createAirflowDatasetReadme(hdfsUsername, projectName, airflowDatasetPath);
+      try {
+        LOGGER.info("Creating dataset Airflow in " + projectName);
+        FsPermission fsPermission = new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.NONE, false);
+        dfso.mkdir(airflowDatasetPath, fsPermission);
+        createAirflowDatasetInDB(projectId);
+        setAirflowDatasetPermissions(projectId, projectName, hdfsUsername);
+        createAirflowDatasetReadme(hdfsUsername, projectName);
+        setAirflowDatasetProvType(projectId, projectName);
+      } catch (IOException | SQLException | MigrationException e) {
+        LOGGER.error("Failed to create the airflow dataset in project: " + projectName, e);
+        if (dfso.exists(airflowDatasetPath)) {
+          LOGGER.info("Deleting the airflow dataset in project: " + projectName);
+          try {
+            dfso.rm(airflowDatasetPath, true);
+          } catch (IOException ex) {
+            LOGGER.error("Failed to delete the airflow dataset in project: " + projectName, ex);
+          }
+          deleteAirflowDatasetInDB(projectId);
+        }
+        throw  e;
+      }
     } else {
       LOGGER.info("Airflow dataset already exist for project: " + projectName);
     }
   }
 
-  private void createAirflowDataset(Integer projectId, Path airflowDatasetPath) throws MigrationException,
-      SQLException {
+  private void createAirflowDatasetInDB(Integer projectId) throws SQLException {
     // check if it does not already exist
     Statement stmt = connection.createStatement();
     ResultSet resultSet = stmt.executeQuery("SELECT id FROM dataset WHERE projectId=" + projectId
@@ -167,7 +186,50 @@ public class DagsMigration implements MigrateStep {
     }
   }
 
-  private void createAirflowDatasetReadme(String hdfsUsername, String projectName, Path datasetPath) {
+  private void deleteAirflowDatasetInDB(Integer projectId) throws SQLException {
+    try {
+      PreparedStatement statement = connection.prepareStatement("DELETE FROM dataset " +
+          "WHERE projectId=? AND inode_name=?");
+      statement.setInt(1, projectId);
+      statement.setString(2, AIRFLOW_DATASET_NAME);
+      statement.execute();
+      statement.close();
+    } catch (SQLException e) {
+      LOGGER.error("Failed to delete airflow database in DB", e);
+    }
+  }
+
+  private void setAirflowDatasetPermissions(Integer projectId, String projectName, String hdfsUsername)
+      throws IOException, MigrationException, SQLException {
+    Path airflowDatasetPath = getAirflowDatasetPath(projectName);
+    String datasetGroup = getAirflowDatasetGroup(projectName);
+    dfso.setOwner(airflowDatasetPath, hdfsUsername, datasetGroup);
+    String datasetAclGroup = getAirflowDatasetAclGroup(projectName);
+    addGroup(datasetAclGroup);
+    addUserToGroup(hdfsUsername, datasetAclGroup);
+    dfso.setPermission(airflowDatasetPath, getDefaultDatasetAcl(datasetAclGroup));
+    addProjectMembersToAirflowDataset(projectId, projectName);
+    // set the airflow acls
+    dfso.getFilesystem().modifyAclEntries(airflowDatasetPath, getAirflowAcls());
+  }
+
+  private void setAirflowDatasetProvType(Integer projectId, String projectName) throws MigrationException {
+    ProvCoreDTO provCore = new ProvCoreDTO(Provenance.Type.META.dto, projectId.longValue());
+    try {
+      dfso.setMetaStatus(getAirflowDatasetPath(projectName), Inode.MetaStatus.META_ENABLED);
+      JAXBContext jaxbContext = jaxbContext();
+      Marshaller marshaller = jaxbContext.createMarshaller();
+      StringWriter sw = new StringWriter();
+      marshaller.marshal(provCore, sw);
+      byte[] bProvCore = sw.toString().getBytes();
+      XAttrHelper.upsertProvXAttr(dfso, "/Projects/" + projectName, "core", bProvCore);
+    } catch (JAXBException | XAttrException | IOException e) {
+      throw new MigrationException("Error setting airflow dataset provenance", e);
+    }
+  }
+
+  private void createAirflowDatasetReadme(String hdfsUsername, String projectName) {
+    Path datasetPath = getAirflowDatasetPath(projectName);
     Path readMeFilePath = new Path(datasetPath, "README.md");
     String readmeFile = String.format(README_TEMPLATE, AIRFLOW_DATASET_NAME, AIRFLOW_DATASET_DESCRIPTION);
     try (FSDataOutputStream fsOut = dfso.create(readMeFilePath)) {
@@ -217,6 +279,10 @@ public class DagsMigration implements MigrateStep {
         throw e;
       }
     }
+  }
+
+  private Path getAirflowDatasetPath(String projectName) {
+    return new Path( "hdfs:///Projects/" + projectName + "/"  + AIRFLOW_DATASET_NAME);
   }
 
   private String getHdfsUserName(String username, String projectName) {
@@ -287,6 +353,19 @@ public class DagsMigration implements MigrateStep {
     return aclEntries;
   }
 
+  private JAXBContext jaxbContext() throws JAXBException {
+    Map<String, Object> properties = new HashMap<>();
+    properties.put(MarshallerProperties.JSON_INCLUDE_ROOT, false);
+    properties.put(MarshallerProperties.MEDIA_TYPE, MediaType.APPLICATION_JSON);
+    JAXBContext context = JAXBContextFactory.createContext(
+        new Class[] {
+            ProvCoreDTO.class,
+            ProvTypeDTO.class
+        },
+        properties);
+    return context;
+  }
+
   protected void close() {
     if (connection != null) {
       try {
@@ -302,6 +381,31 @@ public class DagsMigration implements MigrateStep {
 
   @Override
   public void rollback() throws RollbackException {
+    try {
+      setup();
+    } catch (ConfigurationException | SQLException e) {
+      String errorMsg = "Rollback failed. Could not initialize database connection.";
+      LOGGER.error(errorMsg);
+      close();
+      throw new RollbackException(errorMsg, e);
+    }
+    projectAirflowDatasetRollback();
+    close();
+    LOGGER.info("Finished external airflow dags rollback");
+  }
 
+  public void projectAirflowDatasetRollback() throws RollbackException {
+    try {
+      Statement stmt = connection.createStatement();
+      ResultSet resultSet = stmt.executeQuery("SELECT project.id, projectname,users.username FROM project " +
+          "JOIN users ON project.username=users.email;");
+      while (resultSet.next()) {
+        String projectName = resultSet.getString("projectname");
+        LOGGER.info("Deleting airflow dataset for project: " + projectName);
+        dfso.rm(getAirflowDatasetPath(projectName), true);
+      }
+    } catch (SQLException | IOException e) {
+      throw new RollbackException("Failed airflow dataset rollback", e);
+    }
   }
 }
