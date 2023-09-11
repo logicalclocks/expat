@@ -38,7 +38,7 @@ public class XAttrHelper {
     if (name == null || name.isEmpty()) {
       throw new XAttrException("missing xattr name");
     }
-    boolean hasPrevious = (getXAttrInt(udfso, path, XATTR_PROV_NAMESPACE, name) != null);
+    boolean hasPrevious = (getXAttr(udfso, path, XATTR_PROV_NAMESPACE, name) != null);
     addXAttrInt(udfso, path, XATTR_PROV_NAMESPACE, name, value);
     return hasPrevious;
   }
@@ -62,7 +62,7 @@ public class XAttrHelper {
     }
   }
   
-  private static byte[] getXAttrInt(DistributedFileSystemOps udfso, String path, String namespace, String name)
+  public static byte[] getXAttr(DistributedFileSystemOps udfso, String path, String namespace, String name)
     throws XAttrException {
     try {
       return udfso.getXAttr(new Path(path), getXAttrName(namespace, name));
@@ -83,11 +83,6 @@ public class XAttrHelper {
   
   private static String getXAttrName(String namespace, String name) {
     return namespace + "." + name;
-  }
-  
-  public static byte[] getXAttr(DistributedFileSystemOps udfso, String path, String namespace, String name)
-    throws XAttrException {
-    return getXAttrInt(udfso, path, namespace, name);
   }
   
   public static void deleteXAttr(DistributedFileSystemOps udfso, String path, String namespace, String name)
