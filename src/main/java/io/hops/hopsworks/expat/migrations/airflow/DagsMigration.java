@@ -193,7 +193,6 @@ public class DagsMigration implements MigrateStep {
         + "' AND username='" + AIRFLOW_USER   + "';");
     if (!resultSet.next()) {
       ExpatUser expatUser = expatUserFacade.getExpatUserByEmail(connection, AIRFLOW_USER_EMAIL);
-      LOGGER.info("Plain password is " + expatUser.getPassword() + ". Email is " + expatUser.getEmail());
       String userKeyPwd = HopsUtils.randomString(64);
       String cypherPwd = HopsUtils.encrypt(expatUser.getPassword(), userKeyPwd, masterPassword);
       Pair<KeyStore, KeyStore> userKeystores =
