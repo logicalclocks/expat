@@ -114,6 +114,7 @@ public class ExpatCertificateController {
     } catch (Exception e) {
       LOGGER.error("Could not initialize the key generator", e);
     }
+    expatVariablesFacade = new ExpatVariablesFacade(ExpatVariables.class, connection);
     masterJwt = getMasterServiceJWT();
     if (Strings.isNullOrEmpty(masterJwt)) {
       throw new MigrationException("Master service jwt cannot be null");
@@ -123,7 +124,6 @@ public class ExpatCertificateController {
     objectMapper = new ObjectMapper();
     objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     objectMapper.configure(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES, false);
-    expatVariablesFacade = new ExpatVariablesFacade(ExpatVariables.class, connection);
   }
 
   public ExpatCertificateController(Connection connection) throws MigrationException {
