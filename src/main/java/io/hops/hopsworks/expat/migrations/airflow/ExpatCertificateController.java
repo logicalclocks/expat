@@ -17,6 +17,7 @@ import io.hops.hopsworks.expat.db.dao.util.ExpatVariablesFacade;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
+import org.apache.commons.io.FileUtils;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpHost;
 import org.apache.http.client.config.CookieSpecs;
@@ -120,7 +121,7 @@ public class ExpatCertificateController {
       throw new MigrationException("Master service jwt cannot be null");
     }
     java.nio.file.Path masterPwdPath = Paths.get(config.getString(ExpatConf.MASTER_PWD_FILE_KEY));
-    masterPassword = Files.toString(masterPwdPath.toFile(), Charset.defaultCharset());
+    masterPassword = FileUtils.readFileToString(masterPwdPath.toFile(), Charset.defaultCharset());
     objectMapper = new ObjectMapper();
     objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     objectMapper.configure(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES, false);

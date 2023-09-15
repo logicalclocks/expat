@@ -29,6 +29,7 @@ import io.hops.hopsworks.persistence.entity.hdfs.inode.Inode;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
+import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
 
@@ -103,7 +104,7 @@ public class DagsMigration implements MigrateStep {
     hadoopHome = System.getenv("HADOOP_HOME");
     dryRun = config.getBoolean(ExpatConf.DRY_RUN);
     java.nio.file.Path masterPwdPath = Paths.get(config.getString(ExpatConf.MASTER_PWD_FILE_KEY));
-    masterPassword = Files.toString(masterPwdPath.toFile(), Charset.defaultCharset());
+    masterPassword = FileUtils.readFileToString(masterPwdPath.toFile(), Charset.defaultCharset());
     expatUserFacade = new ExpatUserFacade();
     expatVariablesFacade = new ExpatVariablesFacade(ExpatVariables.class, connection);
     try {
@@ -328,8 +329,8 @@ public class DagsMigration implements MigrateStep {
       throws SQLException, IOException {
     // Get the members
     Statement stmt = connection.createStatement();
-    ResultSet resultSet = stmt.executeQuery("SELECT  username, team_role FROM users JOIN project_team WHERE u" +
-        "sers.email = project_team.team_member AND project_id=" + projectId);
+    ResultSet resultSet = stmt.executeQuery("SELECT  username FROM users JOIN project_team WHERE " +
+        "users.email = project_team.team_member AND project_id=" + projectId);
     while (resultSet.next()) {
       String username = resultSet.getString("username");
       String hdfsUserName = getHdfsUserName(username, projectName);
