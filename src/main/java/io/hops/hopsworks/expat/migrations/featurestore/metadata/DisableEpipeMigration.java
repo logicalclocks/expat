@@ -229,11 +229,10 @@ public class DisableEpipeMigration implements MigrateStep {
   }
   
   private String datasetPath(String projectName, String datasetName) {
-    if(datasetName.equals(projectName.toLowerCase() + ".db") ||
-      datasetName.equals(projectName.toLowerCase() + "_featurestore.db")) {
+    if(datasetName.endsWith(".db")) {
       return "/apps/hive/warehouse/" + datasetName;
     } else {
-      return "/Projects/" + projectName + "/" + datasetName;
+      return projectPath(projectName) + "/" + datasetName;
     }
   }
   
@@ -274,6 +273,7 @@ public class DisableEpipeMigration implements MigrateStep {
           case "Jupyter":
           case "DataValidation":
           case "Airflow":
+          case state.projectName + "_Training_Datasets":
           default:
             dfso.setMetaStatus(path, Inode.MetaStatus.META_ENABLED);
             setXAttr(path, new ProvCoreDTO(Provenance.Type.META.dto, state.projectInodeId));
