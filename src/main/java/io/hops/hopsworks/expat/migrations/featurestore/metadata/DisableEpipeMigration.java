@@ -250,11 +250,11 @@ public class DisableEpipeMigration implements MigrateStep {
       Path path = new Path(datasetPath(state.projectName, state.datasetName));
       if (state.datasetName.equals(state.projectName + "_Training_Datasets") ||
         state.datasetName.equals(state.projectName.toLowerCase() + "_featurestore.db")) {
-        dfso.setMetaStatus(path, Inode.MetaStatus.META_ENABLED);
-        setXAttr(path, new ProvCoreDTO(Provenance.Type.META.dto, state.projectInodeId));
-      } else if (state.datasetName.equals(state.projectName.toLowerCase() + ".db")) {
         dfso.setMetaStatus(path, Inode.MetaStatus.FULL_PROV_ENABLED);
         setXAttr(path, new ProvCoreDTO(Provenance.Type.FULL.dto, state.projectInodeId));
+      } else if (state.datasetName.equals(state.projectName.toLowerCase() + ".db")) {
+        dfso.setMetaStatus(path, Inode.MetaStatus.META_ENABLED);
+        setXAttr(path, new ProvCoreDTO(Provenance.Type.META.dto, state.projectInodeId));
       } else {
         switch (state.datasetName) {
           case "Logs":
