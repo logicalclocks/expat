@@ -273,7 +273,6 @@ public class DisableEpipeMigration implements MigrateStep {
           case "Jupyter":
           case "DataValidation":
           case "Airflow":
-          case state.projectName + "_Training_Datasets":
           default:
             dfso.setMetaStatus(path, Inode.MetaStatus.META_ENABLED);
             setXAttr(path, new ProvCoreDTO(Provenance.Type.META.dto, state.projectInodeId));
