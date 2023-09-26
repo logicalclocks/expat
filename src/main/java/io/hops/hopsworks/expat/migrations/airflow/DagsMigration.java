@@ -1,6 +1,5 @@
 package io.hops.hopsworks.expat.migrations.airflow;
 
-import io.fabric8.kubernetes.client.KubernetesClient;
 import io.hops.hopsworks.common.hdfs.DistributedFileSystemOps;
 import io.hops.hopsworks.common.hdfs.FsPermissions;
 import io.hops.hopsworks.common.provenance.core.Provenance;
@@ -11,7 +10,6 @@ import io.hops.hopsworks.common.util.ProcessResult;
 import io.hops.hopsworks.expat.configuration.ConfigurationBuilder;
 import io.hops.hopsworks.expat.configuration.ExpatConf;
 import io.hops.hopsworks.expat.db.DbConnectionFactory;
-import io.hops.hopsworks.expat.db.dao.util.ExpatVariablesFacade;
 import io.hops.hopsworks.expat.executor.ProcessExecutor;
 import io.hops.hopsworks.expat.migrations.MigrateStep;
 import io.hops.hopsworks.expat.migrations.MigrationException;
@@ -68,8 +66,6 @@ public class DagsMigration implements MigrateStep {
       + "## %s";
   private static final String AIRFLOW_DATASET_DESCRIPTION = "Contains airflow dags";
   private Connection connection;
-  private KubernetesClient kubernetesClient;
-  private ExpatVariablesFacade expatVariablesFacade;
   DistributedFileSystemOps dfso = null;
 
 
@@ -406,9 +402,6 @@ public class DagsMigration implements MigrateStep {
     }
     if(dfso != null) {
       dfso.close();
-    }
-    if (kubernetesClient != null) {
-      kubernetesClient.close();
     }
   }
 
