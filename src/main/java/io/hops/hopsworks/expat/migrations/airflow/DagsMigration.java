@@ -1,24 +1,18 @@
 package io.hops.hopsworks.expat.migrations.airflow;
 
-import com.google.common.io.Files;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.hops.hopsworks.common.hdfs.DistributedFileSystemOps;
 import io.hops.hopsworks.common.hdfs.FsPermissions;
 import io.hops.hopsworks.common.provenance.core.Provenance;
 import io.hops.hopsworks.common.provenance.core.dto.ProvCoreDTO;
 import io.hops.hopsworks.common.provenance.core.dto.ProvTypeDTO;
-import io.hops.hopsworks.common.util.HopsUtils;
 import io.hops.hopsworks.common.util.ProcessDescriptor;
 import io.hops.hopsworks.common.util.ProcessResult;
 import io.hops.hopsworks.expat.configuration.ConfigurationBuilder;
 import io.hops.hopsworks.expat.configuration.ExpatConf;
 import io.hops.hopsworks.expat.db.DbConnectionFactory;
-import io.hops.hopsworks.expat.db.dao.user.ExpatUser;
-import io.hops.hopsworks.expat.db.dao.user.ExpatUserFacade;
-import io.hops.hopsworks.expat.db.dao.util.ExpatVariables;
 import io.hops.hopsworks.expat.db.dao.util.ExpatVariablesFacade;
 import io.hops.hopsworks.expat.executor.ProcessExecutor;
-import io.hops.hopsworks.expat.kubernetes.KubernetesClientFactory;
 import io.hops.hopsworks.expat.migrations.MigrateStep;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
@@ -43,7 +37,6 @@ import org.apache.logging.log4j.Logger;
 import org.eclipse.persistence.jaxb.JAXBContextFactory;
 import org.eclipse.persistence.jaxb.MarshallerProperties;
 import org.eclipse.persistence.oxm.MediaType;
-import org.javatuples.Pair;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
@@ -52,7 +45,6 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.nio.charset.Charset;
 import java.nio.file.Paths;
-import java.security.KeyStore;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -76,8 +68,6 @@ public class DagsMigration implements MigrateStep {
       + "## %s";
   private static final String AIRFLOW_DATASET_DESCRIPTION = "Contains airflow dags";
   private Connection connection;
-  private ExpatUserFacade expatUserFacade;
-  private ExpatCertificateController expatCertificateController;
   private KubernetesClient kubernetesClient;
   private ExpatVariablesFacade expatVariablesFacade;
   DistributedFileSystemOps dfso = null;
@@ -105,18 +95,6 @@ public class DagsMigration implements MigrateStep {
     dryRun = config.getBoolean(ExpatConf.DRY_RUN);
     java.nio.file.Path masterPwdPath = Paths.get(config.getString(ExpatConf.MASTER_PWD_FILE_KEY));
     masterPassword = FileUtils.readFileToString(masterPwdPath.toFile(), Charset.defaultCharset());
-    expatUserFacade = new ExpatUserFacade();
-    expatVariablesFacade = new ExpatVariablesFacade(ExpatVariables.class, connection);
-    try {
-      ExpatVariables kubeInstalledVar = expatVariablesFacade.findById("kubernetes_installed");
-      if (Boolean.parseBoolean(kubeInstalledVar.getValue())) {
-        kubernetesClient = KubernetesClientFactory.getClient();
-        kubernetesInstalled = true;
-      }
-    } catch (IllegalAccessException | InstantiationException  e) {
-      throw new MigrationException("Failed to get variable", e);
-    }
-    expatCertificateController = new ExpatCertificateController(connection);
   }
 
   @Override
@@ -134,7 +112,6 @@ public class DagsMigration implements MigrateStep {
         String projectSecret = DigestUtils.sha256Hex(Integer.toString(projectId));
         createAirflowDataset(projectId, projectName, hdfsUsername);
         addAirflowUserToProject(projectId);
-        generateCertificates(projectName);
         try {
           ProcessDescriptor processDescriptor = new ProcessDescriptor.Builder()
               .addCommand(expatPath + "/bin/dags_migrate.sh")
@@ -185,36 +162,6 @@ public class DagsMigration implements MigrateStep {
       preparedStatement.close();
       connection.commit();
       connection.setAutoCommit(true);
-    }
-  }
-
-  private void generateCertificates(String projectName) throws Exception {
-    Statement stmt = connection.createStatement();
-    ResultSet resultSet = stmt.executeQuery("SELECT * FROM user_certs WHERE projectname='" + projectName
-        + "' AND username='" + AIRFLOW_USER   + "';");
-    if (!resultSet.next()) {
-      ExpatUser expatUser = expatUserFacade.getExpatUserByEmail(connection, AIRFLOW_USER_EMAIL);
-      String userKeyPwd = HopsUtils.randomString(64);
-      String cypherPwd = HopsUtils.encrypt(expatUser.getPassword(), userKeyPwd, masterPassword);
-      Pair<KeyStore, KeyStore> userKeystores =
-          expatCertificateController.generateStores(projectName + "__" + AIRFLOW_USER, userKeyPwd);
-      connection.setAutoCommit(false);
-      PreparedStatement preparedStatement = connection.prepareStatement("INSERT INTO " +
-          "user_certs (projectname, username, user_key, user_cert, user_key_pwd) VALUES (?, ? ,?, ?, ?);");
-      preparedStatement.setString(1, projectName);
-      preparedStatement.setString(2, AIRFLOW_USER);
-      preparedStatement.setBytes(3,
-          expatCertificateController.convertKeystoreToByteArray(userKeystores.getValue0(), userKeyPwd));
-      preparedStatement.setBytes(4,
-          expatCertificateController.convertKeystoreToByteArray(userKeystores.getValue1(), userKeyPwd));
-      preparedStatement.setString(5, cypherPwd);
-      preparedStatement.execute();
-      preparedStatement.close();
-      connection.commit();
-      connection.setAutoCommit(true);
-    }
-    if (kubernetesInstalled) {
-      expatCertificateController.createCertsSecretForUser(kubernetesClient, projectName, AIRFLOW_USER);
     }
   }
 
