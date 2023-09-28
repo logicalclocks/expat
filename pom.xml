@@ -23,7 +23,7 @@
 
     <groupId>io.hops.hopsworks</groupId>
     <artifactId>expat</artifactId>
-    <version>3.4.0</version>
+    <version>3.4.1</version>
 
     <dependencies>
         <dependency>
