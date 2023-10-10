@@ -1,6 +1,6 @@
 /*
  * This file is part of Expat
- * Copyright (C) 2020, Logical Clocks AB. All rights reserved
+ * Copyright (C) 2023, Logical Clocks AB. All rights reserved
  *
  * Expat is free software: you can redistribute it and/or modify it under the terms of
  * the GNU Affero General Public License as published by the Free Software Foundation,
@@ -80,15 +80,6 @@ public class ExpatModelVersionFacade extends ExpatAbstractFacade<ExpatModelVersi
                                               String program, String framework, String environment, String experimentId,
                                               String experimentProjectName, boolean dryRun)
     throws SQLException, IllegalAccessException, InstantiationException {
-    LOGGER.info("MODELID " + modelId.toString());
-    LOGGER.info("USERID " + userId.toString());
-    LOGGER.info("VERSION " + version);
-    LOGGER.info("CREATED " + created);
-    LOGGER.info("DESCRIPTION " + description);
-    LOGGER.info("METRICS " + metrics);
-    LOGGER.info("PROGRAM " + program);
-    LOGGER.info("FRAMEWORK " + framework);
-
     try (PreparedStatement stmt = connection.prepareStatement(INSERT_MODEL_VERSION)) {
       stmt.setInt(1, modelId);
       stmt.setInt(2, version);
