@@ -64,6 +64,8 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
   protected ExpatHdfsUserFacade expatHdfsUserFacade;
   protected ExpatUserFacade expatUserFacade;
 
+  protected boolean dryRun;
+
   protected Connection connection;
   private CloseableHttpClient httpClient;
   private HttpHost elastic;
@@ -100,6 +102,7 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
     this.expatProjectFacade = new ExpatProjectFacade(ExpatProject.class, this.connection);
     this.expatUserFacade = new ExpatUserFacade();
     this.expatHdfsUserFacade = new ExpatHdfsUserFacade(ExpatHdfsUser.class, this.connection);
+    this.dryRun = conf.getBoolean(ExpatConf.DRY_RUN);
   }
 
   private void close() throws SQLException, IOException {
@@ -229,7 +232,7 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
                 LOGGER.info("Creating model version");
                 ExpatModelVersion expatModelVersion = expatModelsController.insertModelVersion(connection,
                         expatModel.getId(), version, userId, created, description, metrics, program,
-                        framework, environment, experimentId, experimentProjectName, false);
+                        framework, environment, experimentId, experimentProjectName, dryRun);
               }
             } else {
               LOGGER.info("Found no model versions to migrate for project {}", projectInode.getName());
