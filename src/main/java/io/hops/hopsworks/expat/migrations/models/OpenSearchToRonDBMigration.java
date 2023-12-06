@@ -117,124 +117,123 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
     try {
       setup();
       LOGGER.info("Getting all file provenance indices");
-      JSONArray fileProvIndices = ElasticClient.getIndicesByRegex(httpClient, elastic, elasticUser, elasticPass,
+      JSONObject fileProvIndices = ElasticClient.getIndicesByRegex(httpClient, elastic, elasticUser, elasticPass,
         "*__file_prov");
-      LOGGER.info(fileProvIndices.toString());
       if (fileProvIndices.length() > 0) {
-        LOGGER.info("Found {} file provenance indices to migrate", fileProvIndices.length());
-        for(int i = 0; i < fileProvIndices.length(); i++) {
-          JSONObject fileProvIndexObj = fileProvIndices.getJSONObject(i);
-          String fileProvIndexName = fileProvIndexObj.getString("index");
+        LOGGER.info("Found {} file provenance indices to migrate", fileProvIndices.keySet().size());
+        for(String fileProvIndexName: fileProvIndices.keySet()) {
           long projectInodeId = Long.parseLong(fileProvIndexName.substring(0, fileProvIndexName.indexOf("__")));
-
           ExpatHdfsInode projectInode = expatInodeController.getInodeById(projectInodeId);
-          String projectName = projectInode.getName();
-          ExpatHdfsInode modelDatasetInode = expatInodeController.getInodeAtPath(
-            String.format("/Projects/%s/Models", projectName));
-
-          String query = "{\"from\":0,\"size\":10000,\"query\":{\"bool\":{\"must\":[{\"term\":{\"entry_type\":" +
-            "{\"value\":\"state\",\"boost\":1.0}}},{\"bool\":{\"should\":[{\"term\":{\"project_i_id\":" +
-            "{\"value\":\"" + projectInode.getId() + "\",\"boost\":1.0}}}]" +
-            ",\"adjust_pure_negative\":true,\"boost\":1.0}},{\"bool\":" +
-            "{\"should\":[{\"term\":{\"ml_type\":{\"value\":\"MODEL\",\"boost\":1.0}}}]," +
-            "\"adjust_pure_negative\":true,\"boost\":1.0}},{\"bool\":{\"should\":[{\"term\":{\"dataset_i_id\":" +
-            "{\"value\":\"" + modelDatasetInode.getId() +"\",\"boost\":1.0}}}]" +
-            ",\"adjust_pure_negative\":true,\"boost\":1.0}},{\"exists\":" +
-            "{\"field\":\"xattr_prov.model_summary.value\",\"boost\":1.0}}]," +
-            "\"adjust_pure_negative\":true,\"boost\":1.0}}}";
-
-          JSONObject resp = ElasticClient.search(httpClient, elastic, elasticUser, elasticPass, fileProvIndexName,
-            query);
-
-          JSONArray modelHits = resp.getJSONObject("hits").getJSONArray("hits");
-          if(modelHits.length() > 0) {
-            LOGGER.info("Migrating {} model versions for project {}", modelHits.length(), projectInode.getName());
-            for(int y = 0; y < modelHits.length(); y++) {
-              JSONObject modelHit = modelHits.getJSONObject(y);
-              LOGGER.info(modelHits.toString(4));
-              JSONObject source = modelHit.getJSONObject("_source");
-              JSONObject xattrProv = source.getJSONObject("xattr_prov");
-              JSONObject modelSummary = xattrProv.getJSONObject("model_summary");
-              JSONObject value = modelSummary.getJSONObject("value");
-
-              ExpatProject expatProject = expatProjectFacade.findByProjectName(projectInode.getName());
-              Integer userId = getModelVersionCreator(expatProject, source);
-
-              String modelName = null;
-              if(value.has("name")) {
-                modelName = value.getString("name");
-              } else {
-                throw new MigrationException("name field missing from model: " + source.toString(4));
-              }
-
-              Integer version = null;
-              if(value.has("version")) {
-                version = value.getInt("version");
-              } else {
-                throw new MigrationException("version field missing from model: " + source.toString(4));
-              }
-
-              Date created = new Date(System.currentTimeMillis());
-              if(value.has("create_timestamp")) {
-                created = new Date(source.getLong("create_timestamp"));
-              }
-
-              String description = null;
-              if(value.has("description")) {
-                description = value.getString("description");
-              }
-
-              String metrics = null;
-              if(value.has("metrics")) {
-                Object metricsObj;
-                metricsObj = value.get("metrics");
-                if (metricsObj instanceof JSONObject) {
-                  JSONObject migratedMetrics = new JSONObject();
-                  migratedMetrics.put("attributes", metricsObj);
-                  metrics = migratedMetrics.toString();
-                }
-              }
-
-              String program = null;
-              if (value.has("program")) {
-                program = value.getString("program");
-              }
-
-              String framework = "PYTHON";
-              if (value.has("framework")) {
-                framework = value.getString("framework");
-              }
-
-              String environment = null;
-              if (projectName != null && modelName != null && version != null) {
-                environment = String.format("/Projects/%s/Models/%s/%s/environment.yml",
-                  projectName, modelName, version);
-              }
-
-              String experimentId = null;
-              if (value.has("experimentId")) {
-                experimentId = value.getString("experimentId");
-              }
-
-              String experimentProjectName = null;
-              if (value.has("experimentProjectName")) {
-                experimentProjectName = value.getString("experimentProjectName");
-              }
-
-              ExpatModel expatModel = expatModelsController.getByProjectAndName(expatProject.getId(), modelName);
-              if(expatModel == null) {
-                LOGGER.info("Could not find model ");
-                expatModel = expatModelsController.insertModel(connection, modelName, expatProject.getId(),
-                  false);
-              }
-              LOGGER.info("Creating model version");
-              ExpatModelVersion expatModelVersion = expatModelsController.insertModelVersion(connection,
-                expatModel.getId(), version, userId, created, description, metrics, program,
-                framework, environment, experimentId, experimentProjectName, false);
-              //LOGGER.info(expatModelVersion.getVersion().toString());
-            }
+          if (projectInode == null) {
+            LOGGER.warn("Project inode does not exist " + projectInodeId + ", skipping migration");
           } else {
-            LOGGER.info("Found no model versions to migrate for project {}", projectInode.getName());
+            String projectName = projectInode.getName();
+            ExpatHdfsInode modelDatasetInode = expatInodeController.getInodeAtPath(
+                    String.format("/Projects/%s/Models", projectName));
+
+            String query = "{\"from\":0,\"size\":10000,\"query\":{\"bool\":{\"must\":[{\"term\":{\"entry_type\":" +
+                    "{\"value\":\"state\",\"boost\":1.0}}},{\"bool\":{\"should\":[{\"term\":{\"project_i_id\":" +
+                    "{\"value\":\"" + projectInode.getId() + "\",\"boost\":1.0}}}]" +
+                    ",\"adjust_pure_negative\":true,\"boost\":1.0}},{\"bool\":" +
+                    "{\"should\":[{\"term\":{\"ml_type\":{\"value\":\"MODEL\",\"boost\":1.0}}}]," +
+                    "\"adjust_pure_negative\":true,\"boost\":1.0}},{\"bool\":{\"should\":[{\"term\":{\"dataset_i_id\":" +
+                    "{\"value\":\"" + modelDatasetInode.getId() + "\",\"boost\":1.0}}}]" +
+                    ",\"adjust_pure_negative\":true,\"boost\":1.0}},{\"exists\":" +
+                    "{\"field\":\"xattr_prov.model_summary.value\",\"boost\":1.0}}]," +
+                    "\"adjust_pure_negative\":true,\"boost\":1.0}}}";
+
+            JSONObject resp = ElasticClient.search(httpClient, elastic, elasticUser, elasticPass, fileProvIndexName,
+                    query);
+
+            JSONArray modelHits = resp.getJSONObject("hits").getJSONArray("hits");
+            if (modelHits.length() > 0) {
+              LOGGER.info("Migrating {} model versions for project {}", modelHits.length(), projectInode.getName());
+              for (int y = 0; y < modelHits.length(); y++) {
+                JSONObject modelHit = modelHits.getJSONObject(y);
+                LOGGER.info(modelHits.toString(4));
+                JSONObject source = modelHit.getJSONObject("_source");
+                JSONObject xattrProv = source.getJSONObject("xattr_prov");
+                JSONObject modelSummary = xattrProv.getJSONObject("model_summary");
+                JSONObject value = modelSummary.getJSONObject("value");
+
+                ExpatProject expatProject = expatProjectFacade.findByProjectName(projectInode.getName());
+                Integer userId = getModelVersionCreator(expatProject, source);
+
+                String modelName = null;
+                if (value.has("name")) {
+                  modelName = value.getString("name");
+                } else {
+                  throw new MigrationException("name field missing from model: " + source.toString(4));
+                }
+
+                Integer version = null;
+                if (value.has("version")) {
+                  version = value.getInt("version");
+                } else {
+                  throw new MigrationException("version field missing from model: " + source.toString(4));
+                }
+
+                Date created = new Date(System.currentTimeMillis());
+                if (value.has("create_timestamp")) {
+                  created = new Date(source.getLong("create_timestamp"));
+                }
+
+                String description = null;
+                if (value.has("description")) {
+                  description = value.getString("description");
+                }
+
+                String metrics = null;
+                if (value.has("metrics")) {
+                  Object metricsObj;
+                  metricsObj = value.get("metrics");
+                  if (metricsObj instanceof JSONObject) {
+                    JSONObject migratedMetrics = new JSONObject();
+                    migratedMetrics.put("attributes", metricsObj);
+                    metrics = migratedMetrics.toString();
+                  }
+                }
+
+                String program = null;
+                if (value.has("program")) {
+                  program = value.getString("program");
+                }
+
+                String framework = "PYTHON";
+                if (value.has("framework")) {
+                  framework = value.getString("framework");
+                }
+
+                String environment = null;
+                if (projectName != null && modelName != null && version != null) {
+                  environment = String.format("/Projects/%s/Models/%s/%s/environment.yml",
+                          projectName, modelName, version);
+                }
+
+                String experimentId = null;
+                if (value.has("experimentId")) {
+                  experimentId = value.getString("experimentId");
+                }
+
+                String experimentProjectName = null;
+                if (value.has("experimentProjectName")) {
+                  experimentProjectName = value.getString("experimentProjectName");
+                }
+
+                ExpatModel expatModel = expatModelsController.getByProjectAndName(expatProject.getId(), modelName);
+                if (expatModel == null) {
+                  LOGGER.info("Could not find model ");
+                  expatModel = expatModelsController.insertModel(connection, modelName, expatProject.getId(),
+                          false);
+                }
+                LOGGER.info("Creating model version");
+                ExpatModelVersion expatModelVersion = expatModelsController.insertModelVersion(connection,
+                        expatModel.getId(), version, userId, created, description, metrics, program,
+                        framework, environment, experimentId, experimentProjectName, false);
+              }
+            } else {
+              LOGGER.info("Found no model versions to migrate for project {}", projectInode.getName());
+            }
           }
         }
       }
