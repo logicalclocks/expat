@@ -53,6 +53,7 @@ import java.net.URISyntaxException;
 import java.security.GeneralSecurityException;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Date;
 
 public class OpenSearchToRonDBMigration implements MigrateStep {
   private final static Logger LOGGER = LoggerFactory.getLogger(OpenSearchToRonDBMigration.class);
@@ -175,7 +176,7 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
                   throw new MigrationException("version field missing from model: " + source.toString(4));
                 }
 
-                long created = new java.util.Date().getTime();
+                Long created = new Date().getTime();
                 if (source.has("create_timestamp")) {
                   LOGGER.info("Found create_timestamp " + source.getLong("create_timestamp"));
                   created = source.getLong("create_timestamp");

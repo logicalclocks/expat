@@ -83,7 +83,7 @@ public class ExpatModelVersionFacade extends ExpatAbstractFacade<ExpatModelVersi
       stmt.setInt(1, modelId);
       stmt.setInt(2, version);
       stmt.setInt(3, userId);
-      stmt.setLong(4, created);
+      stmt.setTimestamp(4, new java.sql.Timestamp(created));
       stmt.setString(5, description);
       stmt.setString(6, metrics);
       stmt.setString(7, program);
