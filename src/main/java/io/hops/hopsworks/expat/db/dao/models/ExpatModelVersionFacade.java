@@ -33,7 +33,7 @@ public class ExpatModelVersionFacade extends ExpatAbstractFacade<ExpatModelVersi
   private static final String FIND_BY_MODEL_ID_AND_VERSION = "SELECT * FROM hopsworks.model_version " +
     "WHERE model_id = ? AND version = ?";
 
-  private static final String INSERT_MODEL_VERSION = String.format("INSERT IGNORE INTO %s " +
+  private static final String INSERT_MODEL_VERSION = String.format("REPLACE INTO %s " +
       "(model_id,version,user_id,created,description,metrics,program,framework,environment,experiment_id," +
       "experiment_project_name) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     "hopsworks.model_version");
