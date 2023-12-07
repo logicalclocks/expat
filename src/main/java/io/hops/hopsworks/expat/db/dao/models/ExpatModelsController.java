@@ -30,7 +30,7 @@ public class ExpatModelsController {
   }
 
   public ExpatModelVersion insertModelVersion(Connection connection, Integer modelId, Integer version, Integer userId,
-                                              Date created, String description, String metrics,
+                                              Long created, String description, String metrics,
                                               String program, String framework, String environment, String experimentId,
                                               String experimentProjectName, boolean dryRun)
     throws SQLException, IllegalAccessException, InstantiationException {

@@ -76,7 +76,7 @@ public class ExpatModelVersionFacade extends ExpatAbstractFacade<ExpatModelVersi
   }
 
   public ExpatModelVersion insertModelVersion(Connection connection, Integer modelId, Integer version, Integer userId,
-                                              Date created, String description, String metrics,
+                                              Long created, String description, String metrics,
                                               String program, String framework, String environment, String experimentId,
                                               String experimentProjectName, boolean dryRun)
     throws SQLException, IllegalAccessException, InstantiationException {
@@ -84,7 +84,7 @@ public class ExpatModelVersionFacade extends ExpatAbstractFacade<ExpatModelVersi
       stmt.setInt(1, modelId);
       stmt.setInt(2, version);
       stmt.setInt(3, userId);
-      stmt.setDate(4, created);
+      stmt.setLong(4, created);
       stmt.setString(5, description);
       stmt.setString(6, metrics);
       stmt.setString(7, program);

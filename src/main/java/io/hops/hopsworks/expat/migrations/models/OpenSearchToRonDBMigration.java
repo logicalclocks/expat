@@ -176,10 +176,10 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
                   throw new MigrationException("version field missing from model: " + source.toString(4));
                 }
 
-                Date created = new Date(System.currentTimeMillis());
+                long created = new java.util.Date().getTime();
                 if (source.has("create_timestamp")) {
                   LOGGER.info("Found create_timestamp " + source.getLong("create_timestamp"));
-                  created = new Date(source.getLong("create_timestamp"));
+                  created = source.getLong("create_timestamp");
                 } else {
                   LOGGER.info("Using date " + System.currentTimeMillis() + " as create_timestamp not in {}",
                           source.toString(4));
