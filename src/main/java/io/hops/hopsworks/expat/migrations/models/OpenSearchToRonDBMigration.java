@@ -181,7 +181,8 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
                   LOGGER.info("Found create_timestamp " + source.getLong("create_timestamp"));
                   created = new Date(source.getLong("create_timestamp"));
                 } else {
-                  LOGGER.info("Using date " + System.currentTimeMillis());
+                  LOGGER.info("Using date " + System.currentTimeMillis() + " as create_timestamp not in {}",
+                          source.toString(4));
                 }
 
                 String description = null;
