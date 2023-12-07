@@ -154,7 +154,6 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
               LOGGER.info("Migrating {} model versions for project {}", modelHits.length(), projectInode.getName());
               for (int y = 0; y < modelHits.length(); y++) {
                 JSONObject modelHit = modelHits.getJSONObject(y);
-                LOGGER.info(modelHits.toString(4));
                 JSONObject source = modelHit.getJSONObject("_source");
                 JSONObject xattrProv = source.getJSONObject("xattr_prov");
                 JSONObject modelSummary = xattrProv.getJSONObject("model_summary");
@@ -226,14 +225,15 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
 
                 ExpatModel expatModel = expatModelsController.getByProjectAndName(expatProject.getId(), modelName);
                 if (expatModel == null) {
-                  LOGGER.info("Could not find model ");
+                  LOGGER.info("Could not find model {} for project {}, creating it", modelName, expatProject.getName());
                   expatModel = expatModelsController.insertModel(connection, modelName, expatProject.getId(),
                           false);
                 }
-                LOGGER.info("Creating model version");
                 ExpatModelVersion expatModelVersion = expatModelsController.insertModelVersion(connection,
                         expatModel.getId(), version, userId, created, description, metrics, program,
                         framework, environment, experimentId, experimentProjectName, dryRun);
+                LOGGER.info("Successfully migrated model {} version {} for project {}", expatModel.getName(), version,
+                        expatProject.getName());
               }
             } else {
               LOGGER.info("Found no model versions to migrate for project {}", projectInode.getName());
