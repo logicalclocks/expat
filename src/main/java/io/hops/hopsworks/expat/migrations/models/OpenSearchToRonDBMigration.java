@@ -52,7 +52,6 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.security.GeneralSecurityException;
 import java.sql.Connection;
-import java.sql.Date;
 import java.sql.SQLException;
 
 public class OpenSearchToRonDBMigration implements MigrateStep {
