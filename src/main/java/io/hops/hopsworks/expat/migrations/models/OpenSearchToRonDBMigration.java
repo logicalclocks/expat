@@ -133,8 +133,8 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
             String projectName = projectInode.getName();
             ExpatHdfsInode modelDatasetInode = expatInodeController.getInodeAtPath(
                     String.format("/Projects/%s/Models", projectName));
-
-            String query = "{\"from\":0,\"size\":10000,\"query\":{\"bool\":{\"must\":[{\"term\":{\"entry_type\":" +
+            String query = "{\"track_total_hits\":true,\"from\":0,\"size\":10000,\"query\":{\"bool\":" +
+                    "{\"must\":[{\"term\":{\"entry_type\":" +
                     "{\"value\":\"state\",\"boost\":1.0}}},{\"bool\":{\"should\":[{\"term\":{\"project_i_id\":" +
                     "{\"value\":\"" + projectInode.getId() + "\",\"boost\":1.0}}}]" +
                     ",\"adjust_pure_negative\":true,\"boost\":1.0}},{\"bool\":" +
@@ -149,7 +149,13 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
             JSONObject resp = ElasticClient.search(httpClient, elastic, elasticUser, elasticPass, fileProvIndexName,
                     query);
 
-            JSONArray modelHits = resp.getJSONObject("hits").getJSONArray("hits");
+            JSONObject modelSearchHits = resp.getJSONObject("hits");
+            int totalHits = modelSearchHits.getJSONObject("total").getInt("value");
+            JSONArray modelHits = modelSearchHits.getJSONArray("hits");
+            if(totalHits > modelHits.length()) {
+              throw new MigrationException("There are more documents in opensearch than what will be consumed by" +
+                      " the migration, totalHits=" + totalHits + ", modelHits=" + modelHits.length());
+            }
             if (modelHits.length() > 0) {
               LOGGER.info("Migrating {} model versions for project {}", modelHits.length(), projectInode.getName());
               for (int y = 0; y < modelHits.length(); y++) {
