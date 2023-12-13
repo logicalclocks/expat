@@ -116,7 +116,6 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
 
   @Override
   public void migrate() throws MigrationException {
-    //TODO make sure elastic does not limit number of returned responses
     try {
       setup();
       LOGGER.info("Getting all file provenance indices");
