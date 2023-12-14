@@ -122,8 +122,8 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
       JSONObject fileProvIndices = ElasticClient.getIndicesByRegex(httpClient, elastic, elasticUser, elasticPass,
         "*__file_prov");
       if (fileProvIndices.length() == 10000) {
-        throw new MigrationException("Unexpected large amount of file provenance indices detected. This migration does" +
-                " not handle more than 10000 file provenance indices. " +
+        throw new MigrationException("Unexpected large amount of file provenance indices detected. This migration " +
+                "does not handle more than 10000 file provenance indices. " +
                 "Migration needs to be fixed to handle pagination");
       }
       if (fileProvIndices.length() > 0) {
