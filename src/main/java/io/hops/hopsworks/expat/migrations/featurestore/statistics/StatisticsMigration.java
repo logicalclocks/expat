@@ -557,13 +557,14 @@ public class StatisticsMigration implements MigrateStep {
         return null; // no file content to parse
       }
       fileContent = dfso.cat(filePath);
+      
+      // parse feature descriptive statistics
+      return ExpatFeatureDescriptiveStatistics.parseStatisticsJsonString(fileContent);
     } catch (IOException e) {
       LOGGER.info(String.format("[readAndParseLegacyStatistics] failed to read the file '%s' with error '%s'",
         filePath, e.getMessage()));
       return null; // no file content to parse
     }
-    // parse feature descriptive statistics
-    return ExpatFeatureDescriptiveStatistics.parseStatisticsJsonString(fileContent);
   }
   
   private void insertFeatureDescriptiveStatistics(int statisticsId,

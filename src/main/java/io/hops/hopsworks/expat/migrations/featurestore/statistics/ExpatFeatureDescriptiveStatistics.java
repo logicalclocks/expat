@@ -66,25 +66,24 @@ public class ExpatFeatureDescriptiveStatistics {
       LOGGER.info(String.format("[parseStatisticsJsonString] file content is null or empty"));
       return null;
     }
-    JSONObject jsonContent;
     try {
-      jsonContent = new JSONObject(content);
+      JSONObject jsonContent = new JSONObject(content);
+      if (!jsonContent.has("columns")) {
+        LOGGER.info(String.format("[parseStatisticsJsonString] statistics json does not contain a 'columns' key"));
+        return null;
+      }
+      JSONArray columns = jsonContent.getJSONArray("columns");
+      HashMap<String, ExpatFeatureDescriptiveStatistics> descFdsMap = new HashMap<>();
+      for (int i = 0; i < columns.length(); i++) {
+        JSONObject colStats = (JSONObject) columns.get(i);
+        ExpatFeatureDescriptiveStatistics fds = ExpatFeatureDescriptiveStatistics.fromJSON(colStats);
+        descFdsMap.merge(fds.featureName, fds, (fds1, fds2) -> ExpatFeatureDescriptiveStatistics.merge(fds1, fds2));
+      }
+      return descFdsMap.values();
     } catch (JSONException e) {
       LOGGER.info(String.format("[parseStatisticsJsonString] file content is not a valid JSON"));
       return null;
     }
-    if (!jsonContent.has("columns")) {
-      LOGGER.info(String.format("[parseStatisticsJsonString] statistics json does not contain a 'columns' key"));
-      return null;
-    }
-    JSONArray columns = (new JSONObject(content)).getJSONArray("columns");
-    HashMap<String, ExpatFeatureDescriptiveStatistics> descFdsMap = new HashMap<>();
-    for (int i = 0; i < columns.length(); i++) {
-      JSONObject colStats = (JSONObject) columns.get(i);
-      ExpatFeatureDescriptiveStatistics fds = ExpatFeatureDescriptiveStatistics.fromJSON(colStats);
-      descFdsMap.merge(fds.featureName, fds, (fds1, fds2) -> ExpatFeatureDescriptiveStatistics.merge(fds1, fds2));
-    }
-    return descFdsMap.values();
   }
   
   public static ExpatFeatureDescriptiveStatistics fromJSON(JSONObject statsJson) {
