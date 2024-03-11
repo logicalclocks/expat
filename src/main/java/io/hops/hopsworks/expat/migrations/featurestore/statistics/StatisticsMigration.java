@@ -164,6 +164,7 @@ public class StatisticsMigration implements MigrateStep {
 
   public StatisticsMigration() {
     this.statisticsMigrationBatchSize = Integer.parseInt(System.getProperty("statisticsmigrationbatch", "100"));
+    LOGGER.info("Statistics migration batch size: " + statisticsMigrationBatchSize);
   }
   
   @Override
@@ -350,7 +351,6 @@ public class StatisticsMigration implements MigrateStep {
         if (dryRun) {
           LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Update FGS: %s", updateFgsStmt.toString()));
         } else {
-          LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Update FGS: %s", updateFgsStmt.toString()));
           updateFeatureGroupStatisticsCommitWindow(updateFgsStmt, updatedFeatureGroupStatisticsCommitWindows);
         }
       }
@@ -362,11 +362,8 @@ public class StatisticsMigration implements MigrateStep {
           LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete FGS ACTIVITY: %s",
             deleteFgsActStmt.toString()));
         } else {
-          LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete FGS: %s", deleteFgsStmt.toString()));
-          LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete FGS ACTIVITY: %s",
-            deleteFgsActStmt.toString()));
-          deleteStatisticsBatch(deleteFgsStmt, deleteFGStatisticsIds);
-          deleteStatisticsBatch(deleteFgsActStmt, deleteFGStatisticsIds);
+          deleteStatisticsBatch(deleteFgsStmt, deleteFGStatisticsIds, "FGS");
+          deleteStatisticsBatch(deleteFgsActStmt, deleteFGStatisticsIds, "FGS ACTIVITY");
         }
       }
       
@@ -377,10 +374,8 @@ public class StatisticsMigration implements MigrateStep {
           LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete TDS ACTIVITY: %s",
             deleteTdsActStmt.toString()));
         } else {
-          LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete TDS ACTIVITY: %s",
-            deleteTdsActStmt.toString()));
-          deleteStatisticsBatch(deleteTdsStmt, deleteTDStatisticsIds);
-          deleteStatisticsBatch(deleteTdsActStmt, deleteTDStatisticsIds);
+          deleteStatisticsBatch(deleteTdsStmt, deleteTDStatisticsIds, "TDS");
+          deleteStatisticsBatch(deleteTdsActStmt, deleteTDStatisticsIds, "TDS ACTIVITY");
         }
       }
 
@@ -820,24 +815,31 @@ public class StatisticsMigration implements MigrateStep {
       updateFgsStmt.setInt(2, e.fgStatisticsId);
       updateFgsStmt.addBatch();
       if (c % statisticsMigrationBatchSize == 0) {
+        LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Update FGS: %s", updateFgsStmt.toString()));
         updateFgsStmt.executeBatch();
       }
       c++;
     }
+    LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Update FGS: %s", updateFgsStmt.toString()));
     updateFgsStmt.executeBatch();
   }
   
-  private void deleteStatisticsBatch(PreparedStatement deleteStatisticsStmt, Set<Integer> statisticsIdsToDelete)
+  private void deleteStatisticsBatch(PreparedStatement deleteStatisticsStmt, Set<Integer> statisticsIdsToDelete,
+      String log)
       throws SQLException {
     int c = 0;
     for (Integer id : statisticsIdsToDelete) {
       deleteStatisticsStmt.setInt(1, id);
       deleteStatisticsStmt.addBatch();
       if (c % statisticsMigrationBatchSize == 0) {
+        LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete %s: %s", log,
+            deleteStatisticsStmt.toString()));
         deleteStatisticsStmt.executeBatch();
       }
       c++;
     }
+    LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete %s: %s", log,
+        deleteStatisticsStmt.toString()));
     deleteStatisticsStmt.executeBatch();
   }
   
