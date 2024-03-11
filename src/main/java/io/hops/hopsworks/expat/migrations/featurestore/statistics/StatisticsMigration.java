@@ -47,7 +47,10 @@ import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class StatisticsMigration implements MigrateStep {
@@ -133,8 +136,34 @@ public class StatisticsMigration implements MigrateStep {
   
   private final static String FEATURE_GROUP = "FEATURE_GROUP";
   private final static String TRAINING_DATASET = "TRAINING_DATASET";
-  
+  private Integer statisticsMigrationBatchSize;
+
+  private class FeatureGroupStatisticsCommitWindow {
+    private Integer fgStatisticsId;
+    private Long windowStartCommitTime;
+
+    private FeatureGroupStatisticsCommitWindow(Integer fgStatisticsId, Long windowStartCommitTime) {
+      this.fgStatisticsId = fgStatisticsId;
+      this.windowStartCommitTime = windowStartCommitTime;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      FeatureGroupStatisticsCommitWindow that = (FeatureGroupStatisticsCommitWindow) o;
+      return Objects.equals(fgStatisticsId, that.fgStatisticsId)
+          && Objects.equals(windowStartCommitTime, that.windowStartCommitTime);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(fgStatisticsId, windowStartCommitTime);
+    }
+  }
+
   public StatisticsMigration() {
+    this.statisticsMigrationBatchSize = Integer.parseInt(System.getProperty("statisticsmigrationbatch", "100"));
   }
   
   @Override
@@ -231,7 +260,10 @@ public class StatisticsMigration implements MigrateStep {
     PreparedStatement insertValDatasetFdsStmt = null;
     PreparedStatement deleteTdsStmt = null;
     PreparedStatement deleteTdsActStmt = null;
-    
+    Set<Integer> deleteFGStatisticsIds = new HashSet<>();
+    Set<Integer> deleteTDStatisticsIds = new HashSet<>();
+    Set<FeatureGroupStatisticsCommitWindow> updatedFeatureGroupStatisticsCommitWindows = new HashSet<>();
+
     try {
       // earliest fg commit ids
       fgsEarliestFgCommitIds = getEarliestFgCommitIds();
@@ -282,7 +314,8 @@ public class StatisticsMigration implements MigrateStep {
           
           if (fdsInserted) {
             // set window start commit time if time travel-enabled fg
-            if (updateFeatureGroupStatisticsCommitWindow(updateFgsStmt, statisticsId, windowStartCommitTime)) {
+            if (loadFeatureGroupStatisticsCommitWindow(updatedFeatureGroupStatisticsCommitWindows, statisticsId,
+                windowStartCommitTime)) {
               updateFgStatistics = true;
             }
           } else {  // if fds not inserted
@@ -290,8 +323,7 @@ public class StatisticsMigration implements MigrateStep {
             LOGGER.info(String.format(
               "[migrateFeatureDescriptiveStatistics] -- marking fg statistics for deletion, with id '%s' and " +
                 "feature group id '%s'", statisticsId, entityId));
-            deleteFeatureGroupStatistics(deleteFgsStmt, statisticsId);
-            deleteFeatureGroupStatisticsActivity(deleteFgsActStmt, statisticsId);
+            deleteFGStatisticsIds.add(statisticsId);
             deleteFgStatistics = true;
           }
         } else if (entityType.equals(TRAINING_DATASET)) {
@@ -303,8 +335,7 @@ public class StatisticsMigration implements MigrateStep {
             LOGGER.info(String.format(
               "[migrateFeatureDescriptiveStatistics] -- marking td statistics for deletion, with id '%s' and " +
                 "training dataset id '%s'", statisticsId, entityId));
-            deleteTrainingDatasetStatistics(deleteTdsStmt, statisticsId);
-            deleteTrainingDatasetStatisticsActivity(deleteTdsActStmt, statisticsId);
+            deleteTDStatisticsIds.add(statisticsId);
             deleteTdStatistics = true;
           }
         } else {
@@ -320,7 +351,7 @@ public class StatisticsMigration implements MigrateStep {
           LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Update FGS: %s", updateFgsStmt.toString()));
         } else {
           LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Update FGS: %s", updateFgsStmt.toString()));
-          updateFgsStmt.executeBatch();
+          updateFeatureGroupStatisticsCommitWindow(updateFgsStmt, updatedFeatureGroupStatisticsCommitWindows);
         }
       }
       
@@ -334,8 +365,8 @@ public class StatisticsMigration implements MigrateStep {
           LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete FGS: %s", deleteFgsStmt.toString()));
           LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete FGS ACTIVITY: %s",
             deleteFgsActStmt.toString()));
-          deleteFgsStmt.executeBatch();
-          deleteFgsActStmt.executeBatch();
+          deleteStatisticsBatch(deleteFgsStmt, deleteFGStatisticsIds);
+          deleteStatisticsBatch(deleteFgsActStmt, deleteFGStatisticsIds);
         }
       }
       
@@ -348,8 +379,8 @@ public class StatisticsMigration implements MigrateStep {
         } else {
           LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete TDS ACTIVITY: %s",
             deleteTdsActStmt.toString()));
-          deleteTdsStmt.executeBatch();
-          deleteTdsActStmt.executeBatch();
+          deleteStatisticsBatch(deleteTdsStmt, deleteTDStatisticsIds);
+          deleteStatisticsBatch(deleteTdsActStmt, deleteTDStatisticsIds);
         }
       }
 
@@ -772,39 +803,42 @@ public class StatisticsMigration implements MigrateStep {
     return name + endCommitTime + "_" + featureName + ".json";
   }
   
-  private boolean updateFeatureGroupStatisticsCommitWindow(PreparedStatement updateFgsStmt, Integer fgStatisticsId,
-    Long windowStartCommitTime) throws SQLException {
+  private boolean loadFeatureGroupStatisticsCommitWindow(Set<FeatureGroupStatisticsCommitWindow> loadList,
+      Integer fgStatisticsId, Long windowStartCommitTime) throws SQLException {
     if (windowStartCommitTime == null) {
       return false; // skip update, no time travel-enabled feature group
     }
-    updateFgsStmt.setLong(1, windowStartCommitTime);
-    updateFgsStmt.setInt(2, fgStatisticsId);
-    updateFgsStmt.addBatch();
+    loadList.add(new FeatureGroupStatisticsCommitWindow(fgStatisticsId, windowStartCommitTime));
     return true;
   }
+
+  private void updateFeatureGroupStatisticsCommitWindow(PreparedStatement updateFgsStmt,
+      Set<FeatureGroupStatisticsCommitWindow> listToUpdate) throws SQLException {
+    int c = 0;
+    for (FeatureGroupStatisticsCommitWindow e : listToUpdate) {
+      updateFgsStmt.setLong(1, e.windowStartCommitTime);
+      updateFgsStmt.setInt(2, e.fgStatisticsId);
+      updateFgsStmt.addBatch();
+      if (c % statisticsMigrationBatchSize == 0) {
+        updateFgsStmt.executeBatch();
+      }
+      c++;
+    }
+    updateFgsStmt.executeBatch();
+  }
   
-  private void deleteFeatureGroupStatistics(PreparedStatement deleteFgsStmt, Integer fgStatisticsId)
+  private void deleteStatisticsBatch(PreparedStatement deleteStatisticsStmt, Set<Integer> statisticsIdsToDelete)
       throws SQLException {
-    deleteFgsStmt.setInt(1, fgStatisticsId);
-    deleteFgsStmt.addBatch();
-  }
-  
-  private void deleteFeatureGroupStatisticsActivity(PreparedStatement deleteFgsActStmt, Integer fgStatisticsId)
-    throws SQLException {
-    deleteFgsActStmt.setInt(1, fgStatisticsId);
-    deleteFgsActStmt.addBatch();
-  }
-  
-  private void deleteTrainingDatasetStatistics(PreparedStatement deleteTdsStmt, Integer tdStatisticsId)
-      throws SQLException {
-    deleteTdsStmt.setInt(1, tdStatisticsId);
-    deleteTdsStmt.addBatch();
-  }
-  
-  private void deleteTrainingDatasetStatisticsActivity(PreparedStatement deleteTdsActStmt, Integer tdStatisticsId)
-    throws SQLException {
-    deleteTdsActStmt.setInt(1, tdStatisticsId);
-    deleteTdsActStmt.addBatch();
+    int c = 0;
+    for (Integer id : statisticsIdsToDelete) {
+      deleteStatisticsStmt.setInt(1, id);
+      deleteStatisticsStmt.addBatch();
+      if (c % statisticsMigrationBatchSize == 0) {
+        deleteStatisticsStmt.executeBatch();
+      }
+      c++;
+    }
+    deleteStatisticsStmt.executeBatch();
   }
   
   private byte[] convertPercentilesToByteArray(List<Double> percentilesList) {
