@@ -827,7 +827,7 @@ public class StatisticsMigration implements MigrateStep {
   private void deleteStatisticsBatch(PreparedStatement deleteStatisticsStmt, Set<Integer> statisticsIdsToDelete,
       String log)
       throws SQLException {
-    int c = 0;
+    int c = 1;
     for (Integer id : statisticsIdsToDelete) {
       deleteStatisticsStmt.setInt(1, id);
       deleteStatisticsStmt.addBatch();
