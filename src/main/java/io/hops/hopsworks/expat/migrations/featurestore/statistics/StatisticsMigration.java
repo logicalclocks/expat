@@ -162,10 +162,7 @@ public class StatisticsMigration implements MigrateStep {
     }
   }
 
-  public StatisticsMigration() {
-    this.statisticsMigrationBatchSize = Integer.parseInt(System.getProperty("statisticsmigrationbatch", "100"));
-    LOGGER.info("Statistics migration batch size: " + statisticsMigrationBatchSize);
-  }
+  public StatisticsMigration() {}
   
   @Override
   public void migrate() throws MigrationException {
@@ -363,7 +360,6 @@ public class StatisticsMigration implements MigrateStep {
             deleteFgsActStmt.toString()));
         } else {
           deleteStatisticsBatch(deleteFgsStmt, deleteFGStatisticsIds, "FGS");
-          deleteStatisticsBatch(deleteFgsActStmt, deleteFGStatisticsIds, "FGS ACTIVITY");
         }
       }
       
@@ -375,7 +371,6 @@ public class StatisticsMigration implements MigrateStep {
             deleteTdsActStmt.toString()));
         } else {
           deleteStatisticsBatch(deleteTdsStmt, deleteTDStatisticsIds, "TDS");
-          deleteStatisticsBatch(deleteTdsActStmt, deleteTDStatisticsIds, "TDS ACTIVITY");
         }
       }
 
@@ -881,6 +876,8 @@ public class StatisticsMigration implements MigrateStep {
     dfso = HopsClient.getDFSO(hopsUser);
     dryRun = conf.getBoolean(ExpatConf.DRY_RUN);
     inodeController = new ExpatInodeController(this.connection);
+    this.statisticsMigrationBatchSize = Integer.parseInt(System.getProperty("statisticsmigrationbatch", "100"));
+    LOGGER.info("Statistics migration batch size: " + statisticsMigrationBatchSize);
   }
   
   protected void close() {
