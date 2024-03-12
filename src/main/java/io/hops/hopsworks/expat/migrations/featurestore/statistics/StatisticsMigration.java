@@ -708,7 +708,25 @@ public class StatisticsMigration implements MigrateStep {
           "statistics parameter in position: " + String.valueOf(paramPosition));
     }
   }
-  
+
+  /*private void deleteStatisticsBatch(PreparedStatement deleteStatisticsStmt, Set<Integer> statisticsIdsToDelete,
+      String log)
+      throws SQLException {
+    int c = 1;
+    for (Integer id : statisticsIdsToDelete) {
+      deleteStatisticsStmt.setInt(1, id);
+      deleteStatisticsStmt.addBatch();
+      if (c % statisticsMigrationBatchSize == 0) {
+        LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete %s: %s", log,
+            deleteStatisticsStmt.toString()));
+        deleteStatisticsStmt.executeBatch();
+      }
+      c++;
+    }
+    LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete %s: %s", log,
+        deleteStatisticsStmt.toString()));
+    deleteStatisticsStmt.executeBatch();
+  }*/
   private void deleteFeatureDescriptiveStatistics(Collection<Integer> fdsIds) throws SQLException {
     if (fdsIds.isEmpty()) {
       return; // nothing to be deleted
@@ -716,18 +734,25 @@ public class StatisticsMigration implements MigrateStep {
     PreparedStatement deleteFdsStmt = null;
     try {
       deleteFdsStmt = connection.prepareStatement(DELETE_FEATURE_DESCRIPTIVE_STATISTICS);
+      int c = 1;
       for (Integer fdsId : fdsIds) {
         deleteFdsStmt.setInt(1, fdsId);
         deleteFdsStmt.addBatch();
+
+        if (dryRun) {
+          LOGGER.info(
+              String.format("[deleteFeatureDescriptiveStatistics] Delete batch of FDS: %s", deleteFdsStmt.toString()));
+        } else {
+          if (c % statisticsMigrationBatchSize == 0) {
+            LOGGER.info(
+                String.format("[deleteFeatureDescriptiveStatistics] Delete batch of FDS: %s",
+                    deleteFdsStmt.toString()));
+            deleteFdsStmt.executeBatch();
+          }
+          c++;
+        }
       }
-      if (dryRun) {
-        LOGGER.info(
-          String.format("[deleteFeatureDescriptiveStatistics] Delete batch of FDS: %s", deleteFdsStmt.toString()));
-      } else {
-        LOGGER.info(
-          String.format("[deleteFeatureDescriptiveStatistics] Delete batch of FDS: %s", deleteFdsStmt.toString()));
-        deleteFdsStmt.executeBatch();
-      }
+      deleteFdsStmt.executeBatch();
     } finally {
       if (deleteFdsStmt != null) {
         deleteFdsStmt.close();
