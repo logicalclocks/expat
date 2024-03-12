@@ -809,7 +809,7 @@ public class StatisticsMigration implements MigrateStep {
 
   private void updateFeatureGroupStatisticsCommitWindow(PreparedStatement updateFgsStmt,
       Set<FeatureGroupStatisticsCommitWindow> listToUpdate) throws SQLException {
-    int c = 0;
+    int c = 1;
     for (FeatureGroupStatisticsCommitWindow e : listToUpdate) {
       updateFgsStmt.setLong(1, e.windowStartCommitTime);
       updateFgsStmt.setInt(2, e.fgStatisticsId);
