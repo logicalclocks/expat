@@ -765,12 +765,14 @@ public class StatisticsMigration implements MigrateStep {
         LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete %s: %s", log,
             deleteStatisticsStmt.toString()));
         deleteStatisticsStmt.executeBatch();
+        connection.commit();
       }
       c++;
     }
     LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete %s: %s", log,
         deleteStatisticsStmt.toString()));
     deleteStatisticsStmt.executeBatch();
+    connection.commit();
   }
   
   private byte[] convertPercentilesToByteArray(List<Double> percentilesList) {
