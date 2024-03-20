@@ -199,7 +199,6 @@ public class StatisticsMigration implements MigrateStep {
   public void runMigration()
     throws MigrationException, SQLException, IOException, IllegalAccessException, InstantiationException {
     PreparedStatement fdsStmt = null;
-//    PreparedStatement orphanStatsStmt = null;
     
     try {
       connection.setAutoCommit(false);
@@ -362,7 +361,7 @@ public class StatisticsMigration implements MigrateStep {
           deleteStatisticsBatch(deleteTdsStmt, deleteTDStatisticsIds, "TDS");
         }
       }
-      
+
       // delete temporary feature descriptive statistics
       // NOTE: These feature descriptive statistics have become orphan. The deletion of orphan fds statistics and files
       // is delegated to the StatisticsCleaner.
