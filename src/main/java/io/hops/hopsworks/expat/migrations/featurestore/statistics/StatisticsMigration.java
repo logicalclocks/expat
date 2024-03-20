@@ -608,6 +608,7 @@ public class StatisticsMigration implements MigrateStep {
       
       // insert fds
       insertFdsStmt.executeBatch();
+      connection.commit();
       
       // insert intermediate table rows
       ResultSet generatedKeys = insertFdsStmt.getGeneratedKeys();
@@ -618,6 +619,7 @@ public class StatisticsMigration implements MigrateStep {
         insertIntermediateStmt.addBatch();
       }
       insertIntermediateStmt.executeBatch();
+      connection.commit();
     }
   }
   
@@ -747,11 +749,13 @@ public class StatisticsMigration implements MigrateStep {
       if (c % statisticsMigrationBatchSize == 0) {
         LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Update FGS: %s", updateFgsStmt.toString()));
         updateFgsStmt.executeBatch();
+        connection.commit();
       }
       c++;
     }
     LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Update FGS: %s", updateFgsStmt.toString()));
     updateFgsStmt.executeBatch();
+    connection.commit();
   }
   
   private void deleteStatisticsBatch(PreparedStatement deleteStatisticsStmt, Set<Integer> statisticsIdsToDelete,
