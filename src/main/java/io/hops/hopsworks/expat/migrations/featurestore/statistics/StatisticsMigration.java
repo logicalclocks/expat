@@ -334,7 +334,8 @@ public class StatisticsMigration implements MigrateStep {
       // update feature group statistics window start commits
       if (updateFgStatistics) {
         if (dryRun) {
-          LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Update FGS: %s", updateFgsStmt.toString()));
+          LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Update FGS: %s, size: %d",
+                  updateFgsStmt.toString(), updatedFeatureGroupStatisticsCommitWindows.size()));
         } else {
           updateFeatureGroupStatisticsCommitWindow(updateFgsStmt, updatedFeatureGroupStatisticsCommitWindows);
         }
@@ -343,7 +344,8 @@ public class StatisticsMigration implements MigrateStep {
       // delete feature group statistics that failed to be migrated
       if (deleteFgStatistics) {
         if (dryRun) {
-          LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete FGS: %s", deleteFgsStmt.toString()));
+          LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete FGS: %s, size: %d",
+              deleteFgsStmt.toString(), deleteFGStatisticsIds.size()));
           LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete FGS ACTIVITY: %s",
             deleteFgsActStmt.toString()));
         } else {
@@ -354,7 +356,8 @@ public class StatisticsMigration implements MigrateStep {
       // delete training dataset statistics that failed to be migrated
       if (deleteTdStatistics) {
         if (dryRun) {
-          LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete TDS: %s", deleteTdsStmt.toString()));
+          LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete TDS: %s, size: %s",
+              deleteTdsStmt.toString(), deleteTDStatisticsIds.size()));
           LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete TDS ACTIVITY: %s",
             deleteTdsActStmt.toString()));
         } else {
@@ -366,7 +369,8 @@ public class StatisticsMigration implements MigrateStep {
       // NOTE: These feature descriptive statistics have become orphan. The deletion of orphan fds statistics and files
       // is delegated to the StatisticsCleaner.
       String fdsIdsStr = fdsIds.stream().map(String::valueOf).collect(Collectors.joining(", "));
-      LOGGER.info(String.format("[deleteFeatureDescriptiveStatistics] Delegate deletion of FDS: %s", fdsIdsStr));
+      LOGGER.info(String.format("[deleteFeatureDescriptiveStatistics] Delegate deletion of FDS: %s, size: %d",
+          fdsIdsStr, fdsIds.size()));
     } finally {
       if (insertFdsStmt != null) {
         insertFdsStmt.close();
@@ -589,14 +593,19 @@ public class StatisticsMigration implements MigrateStep {
     
     // insert feature descriptive statistics rows
     for (ExpatFeatureDescriptiveStatistics fds : fdsList) {
-      // create extended statistics file, if needed
-      fds.extendedStatistics =
-        createExtendedStatisticsFile(windowStartCommitTime, windowEndCommitTime, fds.featureName,
-          fds.extendedStatistics, beforeTransformation, splitName, dirPath, fileStatus);
-      // set statement parameters
-      setFdsStatementParameters(insertFdsStmt, fds);
-      // add to batch
-      insertFdsStmt.addBatch();
+      if(fds.featureName.length() <= 63) {
+        // create extended statistics file, if needed
+        fds.extendedStatistics =
+            createExtendedStatisticsFile(windowStartCommitTime, windowEndCommitTime, fds.featureName,
+                fds.extendedStatistics, beforeTransformation, splitName, dirPath, fileStatus);
+        // set statement parameters
+        setFdsStatementParameters(insertFdsStmt, fds);
+        // add to batch
+        insertFdsStmt.addBatch();
+      } else {
+        LOGGER.info(String.format("LONG FEATURE_NAME: %s - %s", fds.featureName, fds.id != null ? fds.id.toString() :
+            "null"));
+      }
     }
     
     if (dryRun) {
